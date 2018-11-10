@@ -1,6 +1,6 @@
 ---
 layout: post
-title: "이것이 자바다 self study - prologue
+title: "이것이 자바다 self study - prologue"
 date: 2018-11-10
 categories:
 ---
