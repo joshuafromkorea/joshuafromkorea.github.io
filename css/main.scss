@@ -33,7 +33,7 @@ $border1: #CCCCFF;
 $border2: #aaaa33;
 $arrowheadColor: #333333;
 
-/* Flowchart variables */
+// Flowchart variables 
 
 $nodeBkg: $mainBkg;
 $nodeBorder: #9370DB;
@@ -43,7 +43,7 @@ $defaultLinkColor: $lineColor;
 $titleColor: #333;
 $edgeLabelBackground: #e8e8e8;
 
-/* Sequence Diagram variables */
+// Sequence Diagram variables 
 
 $actborBorder: $border1;
 $actorBkg: $mainBkg;
@@ -59,7 +59,7 @@ $noteBkgColor: #fff5ad;
 $activationBorderColor: #666;
 $activationBkgColor: #f4f4f4;
 
-/* Gantt chart variables */
+// Gantt chart variables 
 
 $sectionBkgColor: rgba(102, 102, 255, 0.49);
 $altSectionBkgColor: white;
@@ -88,9 +88,9 @@ $todayLineColor: red;
 //     }
 // }
 @mixin media-query($device) {
-    @media screen and (max-width: $device) {
-        @content;
-    }
+​    @media screen and (max-width: $device) {
+​        @content;
+​    }
 }
 
 // Import partials from `sass_dir` (defaults to `_sass`)
