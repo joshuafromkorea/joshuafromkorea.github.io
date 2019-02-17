@@ -15,7 +15,9 @@ markdown_ext:  markdown,mkdown,mkdn,mkd,md
 #gems
 gems: [jekyll-mermaid]
 
+
 mermaid:
         src: '/js/mermaid.js'
+
 redcarpet:
   extensions: ["tables", "autolink", "strikethrough", "space_after_headers", "fenced_code_blocks"]
