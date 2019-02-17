@@ -26,7 +26,7 @@ JPA가 제공하는 기능을 두 개로 분리한다면 다음과 같다
 
 반면에 엔티티 매니저 팩토리가 생성하는 엔티티 매니저는 생성 비용이 거의 들지 않으며, DB 커넥션과 밀접하게 연관 되어있기 때문에, 여러 스레드간 접근시 동시성 문제가 발생하여서 스레드간 공유하면 안된다.
 
-<div class="mermaid">
+<div class="mermaidTooltip">
 graph LR
 	F[EntityManagerFactory]
 	E1[EntityManager1]
