@@ -51,4 +51,5 @@ $critBorderColor: #ff8888;
 $critBkgColor: red;
 $todayLineColor: red;
 
-@import '../mermaid';
+@import "mermaid";
+@import "flowchart";
