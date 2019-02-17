@@ -92,14 +92,13 @@ $todayLineColor: red;
 }
 
 // Import partials from `sass_dir` (defaults to `_sass`)
-@import
-  "base",
-  "layout",
-  "syntax-highlighting",
-  "flowchart",
-  "sequence",
-  "gantt",
-  "class",
-  "git"
+@import url(/_sass/_base.scss);
+@import url(/_sass/_layout.scss);  
+@import url(/_sass/_syntax-highlighting.scss);
+@import url(/_sass/_flowchart.scss);
+@import url(/_sass/_sequence.scss);;
+@import url(/_sass/_gantt.scss);
+@import url(/_sass/_class.scss);
+@import url(/_sass/_git.scss);
 ;
 
