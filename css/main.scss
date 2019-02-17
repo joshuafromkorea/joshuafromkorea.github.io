@@ -45,10 +45,5 @@ $on-laptop:        700px;
         "base",
 	"index",
         "layout",
-        "syntax-highlighting",
-	"flowchart",
-	"gantt",
-	"git",
-	"sequence"
-	
 ;
+@import url('https://unpkg.com/mermaid@8.0.0/src/themes/default/index.scss');
