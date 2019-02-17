@@ -403,7 +403,7 @@ Team team = member.getTeam();
 
 이를 확장하여 아래와 같이 연관관계들이 설계되어 있다고 가정해보자
 
-```mermaid
+{% mermaid %}
 graph LR
 	Member --- Team
 	Member --- Order
@@ -411,7 +411,7 @@ graph LR
 	Order --- Delivery
 	OrderItem --- Item
 	Item --- Category
-```
+{% endmermaid %}
 
 이런 객체 연관관계가 존재한다면 다음과 같은 객체 그래프 탐색이 이루어질 수 있어야 한다.
 
