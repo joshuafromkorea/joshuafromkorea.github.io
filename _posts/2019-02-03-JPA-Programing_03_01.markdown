@@ -26,7 +26,7 @@ JPA가 제공하는 기능을 두 개로 분리한다면 다음과 같다
 
 반면에 엔티티 매니저 팩토리가 생성하는 엔티티 매니저는 생성 비용이 거의 들지 않으며, DB 커넥션과 밀접하게 연관 되어있기 때문에, 여러 스레드간 접근시 동시성 문제가 발생하여서 스레드간 공유하면 안된다.
 
-```mermaid
+<div class="mermaid">
 graph LR
 	F[EntityManagerFactory]
 	E1[EntityManager1]
@@ -49,7 +49,7 @@ graph LR
 	C1-->D
 	C2-->D
 	C3-->D
-```
+</div>
 
 **엔티티 매니저가 가진 특징**중 하나는 위의 그림과 같이, 실제로 모든 엔티티 매니저가 항상 커넥션을 사용하는 것은 아니라는 것이다. 데이터베이스 연결이 꼭 필요한 시점까지 커넥션을 획득하지 않는다, 일반적으로 트랜잭션을 시작할 때 커넥션을 획득한다.
 
@@ -69,7 +69,7 @@ graph LR
 * **삭제**(deleted): 삭제된 상태
 
 그리고 이러한 상태는 아래의 생명주기로 표현될 수 있다.
-```mermaid
+<div class="mermaid">
 graph LR
 	N(New)
 	M(Managed)
@@ -80,7 +80,7 @@ graph LR
 	R-->|"persist()"|M
 	M-->|"detach()"|D
 	D-->|"merge()"|M
-```
+</div>
 
 #### 비영속
 
@@ -94,7 +94,7 @@ member.setName(...);
 
 ##### 비영속 상태
 
-```mermaid
+<div class="mermaid">
 graph LR
 	M((member))
 	subgraph 영속성 컨텍스트
@@ -105,8 +105,7 @@ graph LR
 	style D fill:#ffccb3, stroke:#ff661a, height:0px, width:90px;
 	style E fill:#ffccb3, stroke:#ff661a, height:0px, width:90px;
 	linkStyle 0 stroke:#FFFFF,stroke-width:0;
-	
-```
+</div>
 
 #### 영속
 
@@ -118,13 +117,13 @@ em.persiste(member);
 
 ##### 영속 상태
 
-```mermaid
+<div class="mermaid">
 graph LR
 	subgraph 영속 컨텍스트
 	m((member))
 	end
 	
-```
+</div>
 
 #### 준영속
 

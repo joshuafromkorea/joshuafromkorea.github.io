@@ -300,7 +300,7 @@ JPA에 대한 설정은 프로젝트 경로내의 psersistence.xml 파일을 통
 
 엔티티 매니저의 생성 과정은 다음과 같다.
 
-```mermaid
+<div class="mermaid">
 graph LR
 	P[Persistence]
 	M[persistence.xml]
@@ -309,7 +309,7 @@ graph LR
 	P-->|1.설정 정보 조회|M
 	P-->|2.생성|F
 	F-->|3.생성|E
-```
+</div>
 
 ##### 엔티티 매니저 팩토리 생성
 
