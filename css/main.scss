@@ -42,7 +42,13 @@ $on-laptop:        700px;
 
 // Import partials from `sass_dir` (defaults to `_sass`)
 @import
-        "base",
-        "layout",
-        "syntax-highlighting"
-;
+	"base",
+	"class",
+	"flowchard",
+	"gantt",
+	"git",
+	"layout",
+	"mermaid",
+	"sequence",
+	"syntax-highlighting"
+	;
