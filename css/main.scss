@@ -1,3 +1,5 @@
+---
+---
 @charset "utf-8";
 
 // Our variables
@@ -24,59 +26,6 @@ $on-palm:          700px;
 $on-laptop:        700px;
 
 
-$mainBkg: #ECECFF;
-$secondBkg: #ffffde;
-$lineColor: #333333;
-$border1: #CCCCFF;
-$border2: #aaaa33;
-$arrowheadColor: #333333;
-
-// Flowchart variables 
-
-$nodeBkg: $mainBkg;
-$nodeBorder: #9370DB;
-$clusterBkg: $secondBkg;
-$clusterBorder: $border2;
-$defaultLinkColor: $lineColor;
-$titleColor: #333;
-$edgeLabelBackground: #e8e8e8;
-
-// Sequence Diagram variables 
-
-$actborBorder: $border1;
-$actorBkg: $mainBkg;
-$actorTextColor: black;
-$actorLineColor: grey;
-$signalColor: #333;
-$signalTextColor: #333;
-$labelBoxBkgColor: $actorBkg;
-$labelBoxBorderColor: $actorBorder;
-$labelTextColor: $actorTextColor;
-$noteBorderColor: $border2;
-$noteBkgColor: #fff5ad;
-$activationBorderColor: #666;
-$activationBkgColor: #f4f4f4;
-
-// Gantt chart variables 
-
-$sectionBkgColor: rgba(102, 102, 255, 0.49);
-$altSectionBkgColor: white;
-$sectionBkgColor2: #fff400;
-$taskBorderColor: #534fbc;
-$taskBkgColor: #8a90dd;
-$taskTextLightColor: white;
-$taskTextColor: $taskTextLightColor;
-$taskTextDarkColor: black;
-$taskTextOutsideColor: $taskTextDarkColor;
-$activeTaskBorderColor: #534fbc;
-$activeTaskBkgColor: #bfc7ff;
-$gridColor: lightgrey;
-$doneTaskBkgColor: lightgrey;
-$doneTaskBorderColor: grey;
-$critBorderColor: #ff8888;
-$critBkgColor: red;
-$todayLineColor: red;
-
 
 // Using media queries with like this:
 // @include media-query($on-palm) {
@@ -86,19 +35,14 @@ $todayLineColor: red;
 //     }
 // }
 @mixin media-query($device) {
-​    @media screen and (max-width: $device) {
-​        @content;
-​    }
+    @media screen and (max-width: $device) {
+        @content;
+    }
 }
 
 // Import partials from `sass_dir` (defaults to `_sass`)
-@import url(/_sass/_base.scss);
-@import url(/_sass/_layout.scss);  
-@import url(/_sass/_syntax-highlighting.scss);
-@import url(/_sass/_flowchart.scss);
-@import url(/_sass/_sequence.scss);;
-@import url(/_sass/_gantt.scss);
-@import url(/_sass/_class.scss);
-@import url(/_sass/_git.scss);
+@import
+        "base",
+        "layout",
+        "syntax-highlighting"
 ;
-
