@@ -127,6 +127,7 @@ int intVal = 103029770;
 byte byteVal = (byte) intval; //강제 변환은 되지만 원래 int값 중 마지막 byte만 보존된다.
 System.out.println(byteval); // 10
 ```
+
 `int`타입은 `char`로 자동변환(promotion) 되지 않기 때문에 casting이 필요하다
 
 ```java

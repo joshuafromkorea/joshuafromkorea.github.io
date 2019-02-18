@@ -122,7 +122,7 @@ graph LR
 	subgraph 영속 컨텍스트
 	m((member))
 	end
-	
+
 </div>
 
 #### 준영속

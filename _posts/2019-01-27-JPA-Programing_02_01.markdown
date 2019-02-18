@@ -51,7 +51,6 @@ drwxr-xr-x 1 Joshua 197121   0 1월  26 22:30 ch11-jpa-shop/
 drwxr-xr-x 1 Joshua 197121   0 1월  26 22:30 ch12-springdata-shop/
 -rw-r--r-- 1 Joshua 197121 239 1월  26 22:30 clean.sh
 -rw-r--r-- 1 Joshua 197121 638 1월  26 22:30 README.md
-
 ```
 
 ##### Import Project
@@ -263,6 +262,7 @@ JPA에 대한 설정은 프로젝트 경로내의 psersistence.xml 파일을 통
 **영속성 유닛**은 JPA가 관리하는 단위 개념으로 이름을 필요로 한다. 보통 연결할 데이터베이스 당 하나의 영속성 유닛을 등록한다.
 
 ##### JPA 표준 속성
+
 ```xml
 <property name="javax.persistence.jdbc.driver" value="org.h2.Driver"/>
 <property name="javax.persistence.jdbc.user" value="sa"/>
