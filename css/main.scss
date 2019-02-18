@@ -4,7 +4,7 @@
 
 // Our variables
 $base-font-family: 'PT Sans', Helvetica, Arial, sans-serif;
-$base-font-size:   16px;
+$base-font-size:   16px ;
 $small-font-size:  $base-font-size * 0.895;
 $large-font-size:  $base-font-size * 1.40;
 
@@ -94,12 +94,13 @@ $todayLineColor: red;
 }
 
 // Import partials from `sass_dir` (defaults to `_sass`)
-@import "base";
-@import "layout";
-@import "syntax-highlighting";
-@import "flowchart";
-@import "sequence";
-@import "gantt";
-@import "class";
-@import "git";
-
+@import
+	"index",
+	"base",
+        "layout",
+        "syntax-highlighting",
+	"flowchart",
+	"gantt",
+	"git",
+	"sequence"
+;

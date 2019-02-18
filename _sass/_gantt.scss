@@ -70,7 +70,7 @@
 /* Default task */
 
 .task {
-  stroke-width: 2;
+  stroke-width: 2px;
 }
 
 .taskText {
@@ -109,7 +109,7 @@
 }
 
 .taskTextOutside0,
-.taskTextOutside2,
+.taskTextOutside2
 {
   fill: $taskTextOutsideColor;
 }
@@ -146,7 +146,7 @@
 .done3 {
   stroke: $doneTaskBorderColor;
   fill: $doneTaskBkgColor;
-  stroke-width: 2;
+  stroke-width: 2px;
 }
 
 .doneText0,
@@ -165,7 +165,7 @@
 .crit3 {
   stroke: $critBorderColor;
   fill: $critBkgColor;
-  stroke-width: 2;
+  stroke-width: 2px;
 }
 
 .activeCrit0,
@@ -174,7 +174,7 @@
 .activeCrit3 {
   stroke: $critBorderColor;
   fill: $activeTaskBkgColor;
-  stroke-width: 2;
+  stroke-width: 2px;
 }
 
 .doneCrit0,
@@ -183,7 +183,7 @@
 .doneCrit3 {
   stroke: $critBorderColor;
   fill: $doneTaskBkgColor;
-  stroke-width: 2;
+  stroke-width: 2px;
   cursor: pointer;
   shape-rendering: crispEdges;
 }
