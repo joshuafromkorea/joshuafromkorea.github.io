@@ -45,7 +45,7 @@ $edgeLabelBackground: #e8e8e8;
 
 // Sequence Diagram variables 
 
-$actborBorder: $border1;
+$actorBorder: $border1;
 $actorBkg: $mainBkg;
 $actorTextColor: black;
 $actorLineColor: grey;
@@ -88,9 +88,9 @@ $todayLineColor: red;
 //     }
 // }
 @mixin media-query($device) {
-​    @media screen and (max-width: $device) {
-​        @content;
-​    }
+     	@media screen and (max-width: $device) {
+	       	@content
+       	}
 }
 
 // Import partials from `sass_dir` (defaults to `_sass`)
