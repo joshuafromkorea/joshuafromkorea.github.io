@@ -65,14 +65,19 @@ public class MemberDAO {
 `find()`메소드의 로직 완성을 위해서 개발자는 일반적으로 아래의 순서로 코딩할 것이다.
 
 1. 회원 조회용 SQL을 작성한다.
+
 ```sql
 SELECT MEMBER_ID, NAME FROM MEMBER WHERE MEMBER_ID = ?
 ```
+
 2. JDBC API를 사용해서 SQL을 실행한다.
+
 ```java
 ResultSet rs = stmt.executeQuery(sql);
 ```
+
 3. 조회 결과를 Member 객체로 매핑 한다.
+
 ```java
 String member_id = rs.getString("MEMBER_ID");
 String name = rs.getString("NAME");
@@ -85,15 +90,20 @@ member.setName(name);
 만약 회원 등록을 위한 `save()`를 DAO에 추가한다면 그 개발 순서도 이와 비슷하다
 
 1. 회원 등록용 SQL을 작성한다
+
 ```sql
 INSERT INTO MEMBER(MEMBER_ID, NAME) VALUES(?,?)
 ```
+
 2. 회원 객체가 가진 값을 불러와 SQL에 전달한다.
+
 ```java
 pstmt.setString(1, member.getMember();
 pstmt.setString(2, member.getName());
 ```
+
 3. JDBC API를 이용해서 SQL을 실행한다.
+
 ```java
 pstmt.executeUpdate(sql);
 ```
@@ -285,7 +295,9 @@ class Team{
     ...
 }
 ```
+
 ##### 관계에 대한 접근
+
 ```java
 member.getTeam();
 ```
@@ -403,7 +415,7 @@ Team team = member.getTeam();
 
 이를 확장하여 아래와 같이 연관관계들이 설계되어 있다고 가정해보자
 
-<div class="mermaid">
+```mermaid
 graph LR
 	Member --- Team
 	Member --- Order
@@ -411,7 +423,7 @@ graph LR
 	Order --- Delivery
 	OrderItem --- Item
 	Item --- Category
-</div>
+```
 
 이런 객체 연관관계가 존재한다면 다음과 같은 객체 그래프 탐색이 이루어질 수 있어야 한다.
 
@@ -562,7 +574,7 @@ SQL에 의존적인 개발은, 엔티티의 필드 추가가 곧 JDBC API 코드
 
 JPA는 앞서서 기술 표준이라고 살펴보았다. JPA기술 표준을 따르는 어떠한 ORM 프레임워크도 자바로 만들어진 어플리케이션과 연동할 수 있는 것처럼, JPA가 데이터 접근 계층을 추상화해서 애플리케이션에 제공하기 때문에 애플리케이션은 특정 데이타베이스에 종속되지 않게 되는 것이다.
 
-<div class="mermaid">
+```mermaid
 graph LR
 	J[JPA]
 	D[Dialect]
@@ -579,7 +591,8 @@ graph LR
 	MD---|MySQL SQL 생성|MB
 	OD---|Oracle SQL 생성|OB
 	HD---|H2 SQL 생성|HB
-</div>
+```
+
 이를 통해 얻을 수 있는 장점은 너무나도 크다. 예를 들어 개발환경에서는 각자의 개발자가 H2 데이터베이스를 사용하여 개발할 수 있고, 이를 Staging 환경에서는 MySQL을 통해서 관리하고 검증할 수 있다. 최종적으로 상용 서비는 Oracle 데이터베이스를 사용한다고 할지라도, 개발 코드에서는 각 환경에 따라서 JPA가 어떤 데이터베이스를 사용할지 알려주기만 하면 된다.
 
 ### 1.4 정리
