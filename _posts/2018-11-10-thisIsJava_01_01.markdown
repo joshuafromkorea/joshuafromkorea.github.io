@@ -89,27 +89,27 @@ joshua@Ideapad:~$ javac -version
 javac 1.8.0_181
 ```
 
-1. which` 명령어로 javac의 위치를 찾는다 (실행파일의 위치를 찾음)
+2. which` 명령어로 javac의 위치를 찾는다 (실행파일의 위치를 찾음)
 
 ```powershell
 joshua@Ideapad:~$ which javac
 /usr/bin/javac
 ```
 
-1. `readlink -f` 명령어로 [심볼릭링크](https://zetawiki.com/wiki/%EC%8B%AC%EB%B3%BC%EB%A6%AD_%EB%A7%81%ED%81%AC)의 원본을 찾는다.
+3. `readlink -f` 명령어로 [심볼릭링크](https://zetawiki.com/wiki/%EC%8B%AC%EB%B3%BC%EB%A6%AD_%EB%A7%81%ED%81%AC)의 원본을 찾는다.
 
 ```powershell
 joshua@Ideapad:~$ readlink -f /usr/bin/javac
 /usr/lib/jvm/java-8-oracle/bin/javac
 ```
 
-1. `/etc/environment` 파일을 열어서 아래 내용을 새로운 줄에 추가한다. (`/etc/profile` 이 아님에 유의)
+4. `/etc/environment` 파일을 열어서 아래 내용을 새로운 줄에 추가한다. (`/etc/profile` 이 아님에 유의)
 
 ```shell
 JAVA_HOME="/usr/lib/jvm/java-8-oracle/"
 ```
 
-1. 제대로 설정됬는지 확인하면 끝!
+5. 제대로 설정됬는지 확인하면 끝!
 
 ```powershell
 joshua@Ideapad:~$ echo $JAVA_HOME
@@ -130,7 +130,7 @@ joshua@Ideapad:~$ echo $JAVA_HOME
 joshua@Ideapad:thisIsJava$ vi Hello.java
 ```
 
-1. 소스파일 내용 입력
+2. 소스파일 내용 입력
 
 ```java
 public class Hello{
@@ -140,7 +140,7 @@ public class Hello{
 }
 ```
 
-1. 컴파일 후 생성된 바이트코드 파일 확인
+3. 컴파일 후 생성된 바이트코드 파일 확인
 
 ```powershell
 joshua@Ideapad:thisIsJava$ vi javac Hello.java
@@ -148,7 +148,7 @@ joshua@Ideapad:thisIsJava$ ls
 Hello.class  Hello.java
 ```
 
-1. 바이트코드 `java` 명령어로 실행
+4. 바이트코드 `java` 명령어로 실행
 
 ```powershell
 joshua@Ideapad:thisIsJava$ java Hello
