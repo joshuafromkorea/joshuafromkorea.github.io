@@ -1,0 +1,856 @@
+---
+layout: post
+title: "이것이 자바다 self study - chapter 11 - 1권 종료"
+date: 2018-12-22
+categories:
+---
+
+드디어 작년 12월에 마무리지었던 이것이 자바다 1권에 대한 포스팅을 완료 하였다. 현재 프로젝트 + JPA 스터디 + 스프링부트 스터디를 동시에 진행중이라 2권은 언제 진행할지 모르겠지만 일단 나름대로 1권을 종료했으니.. 뿌듯...
+
+---
+
+## Chapter 11 기본 API 클래스
+
+### 11.1 자바 API 도큐먼트
+
+API(Application Programming Interface)는 라이브러리라고 불리기도 하고, 자바가 제공하는 이러한 라이브러리를 자바 API라고 한다. 이런 라이브러러리에 대한 문서를 자바 API 도큐먼트라고 하며, 오라클 사의 홈페이지에서 확인할 수 있다.
+
+### 11.2 `java.lang`과 `java.util`패키지
+
+#### 11.2.1 `java.lang` 패키지
+
+자바 프로그램의 가장 기본적인 클래스를 담고 있는 패키지로 **`import` 없이 사용**할 수 있는 패키지이다. 주요 클래스와 간략한 용도는 다음과 같다.
+
+* `Object` : 자바 클래스의 최상위 클래스로 사용됨
+* `System`
+  * 표준 입력 장치(키보드)로부터 데이터 입력시 사용
+  * 표준 출력 장치(모니터)로 출력하기 위해 사용
+  * 자바 가상 기계를 종료신킬 때 사용
+  * 가비지 컬렉터를 실행 요청할 때 사용
+* `Class`: 클래스를 메모리로 로딩할 때 사용
+* `String`: 문자열을 저장하고, 관련 정보를 얻을 때 사용
+* `StringBuffer`, `StringBuilder`: 문자열을 저장하고, 내부문자열 조작할 때 사용
+* `Math`: 수학 함수를 이용할 때 사용
+* Wrapper 클래스들 (`Byte`, `Integer` 등):
+  * 기본 타입의 데이터를 갖는 객체로 사용
+  * 문자열을 기본 타입으로 변환할때 사용
+  * 입력값 검사에 사용
+
+#### 11.2.2 `java.util` 패키지
+
+이름과 같이 유틸리티성 기능들을 담고 있는 패키지로 아래 소개하는 클래스 이외에 15장에 나오는 컬렉션 클래스들을 가지고 있다.
+
+* `Arrays` : 배열을 조작할 때 사용
+* `Calendar`: **운영체제**의 날짜와 시간을 얻을 때 사용
+* `Date`: 날짜와 시간 정보를 저장하는 클래스
+* `Objects`: 객체 비교, 널 여부등을 조사할 때 사용
+* `StringTokenizer`: 특정 문자로 구분된 문자열을 뽑아낼 때 사용
+* `Random`: 난수를 얻을 때 사용
+
+### 11.3 `Object` 클래스
+
+모든 클래스는 `Object` 클래스의 자손이 되는데, 이는 `extends`키워드를 사용하지 않고 선언된 클래스도 암시적으로 `Object`클래스를 삭속하기 때문이다. 따라서 아래에서 살펴보는 메서드들은 자바의 모든 클래스에서 사용이 가능하다.
+
+#### 11.3.1 객체 비교(`eqauls()`)
+
+```java
+//java.lang.Object
+public boolean equals(Object obj){ return (this == obj); }
+```
+
+`Object` 클래스의 기본 `equals()`메서드는 비교연산자(`==`)과 동일한 결과를 리턴하도록 되어있다. 해당 메서드의 주석 부분을 좀더 살펴보면 어떻게 `equals()`메서드를 다뤄야 할지 알수 있다.
+
+* `null`이 아닌 객체의 **참조(reference)**에 관한 **동치관계**를 구현한다.
+* 이 메소드가 오버라이딩 되는 경우, 일반적으로 `hashCode()`메소드도 동일한 로직으로 오버라이딩 한다.
+
+즉, Heap 영역에 생성된 객체가 동일한 객체(동일한 주소 값을 가짐)이라면 `true`를 리턴하고, 아니면 `false`를 리턴하는 것이다. 자바에서는 이 `equals()` 메서드를 두 객체에 대한 **논리적** 동등비교를 위해 사용하는 데, 대부분의 객체의 경우 비교연산자를 사용하는 메소드를 사용하기보다는, 하위 클래스에서 재정의한 메서드를 사용해야 한다. 예를들어 `String`클래스의 경우, 아래와 같이 번지수가 다를 경우, `instanceof` 키워드를 통해서 타입이 같으면, 문자열 내부의 `char` 전체를 비교하는 로직을 가지고 있다.
+
+```java
+//java.lang.String
+public boolean equals(Object anObject) {
+    if (this == anObject) {
+        return true;
+    }
+    if (anObject instanceof String) {
+        String anotherString = (String) anObject;
+        int n = value.length;
+        if (n == anotherString.value.length) {
+            char v1[] = value;
+            char v2[] = anotherString.value;
+            int i = 0;
+            while (n-- != 0) {
+                if (v1[i] != v2[i])
+                        return false;
+                i++;
+            }
+            return true;
+        }
+    }
+    return false;
+}
+```
+
+따라서, 하나의 클래스를 생성할 때 해당 클래스의 인스턴스들을 비교하는 별도의 로직이 존재할 경우에는 `equals()`를 반드시 재정의해줘야 하며, 일반적으로 객체의 필드값에 대한 모든 비교를 하여 동일하면 `true`, 그렇지 않을 경우 `false`를 반환하도록 한다.
+
+#### 11.3.2 객체 해시코드(`hashCode()`)
+
+> 객체 해시코드란 객체를 식별할 하나의 정수값을 말한다.
+
+객체의 메모리 번지수를 사용하여서 해시코드를 생성해 리턴하기에 번지수가 다른 객체는 반드시 다른 해시코드값을 리턴하게 되어있다. 앞서서 11.3.1 에서, `Object`에 서술된 `equals()` 메서드의 주석에서, 해당 메서드를 재정의하면 `hashCode()` 메서드도 재정의하라고 권장하고 있는 이유가 바로 이점 때문이다.
+
+만약 생성한 클래스에 대해서 `equals()`를 재정의해서 논리적 동치성을 확보하였더라고 해도, 15장에서 다룰 컬렉션 프레임워크에서는 각 객체의 구별을 하는 키값으로 `hashCode()`메서드가 리턴하는 정수 값을 사용하기 때문에 `equals()`메서드로는 동일한 객체이지만, 컬렉션에서는 다른 값으로 인식되어 키값으로 사용할 시 문제가 될 수 있다.
+
+`eqauls()`와 `hashCode`메서드에 관하여는 조슈아 블로크著 *Effective Java*에 좀더 자세히 서술되어 있으니 참고하면 된다.
+
+#### 11.3.3 객체 문자 정보(`toString()`)
+
+객체를 문자열로 표시한 값을 `String`타입으로 리턴하게 되어있는데, 기본적으로 `Object`클래스는 아래와 같이 클래스명과 16진수 해시코드를 리턴하도록 되어있다.
+
+```java
+//java.lang.Object
+public String toString() {
+    return getClass().getName() + "@" + Integer.toHexString(hashCode());
+}
+```
+
+하지만 이러한 정보는 애플리케이션에서 의미 없는 정보이므로, 대부분의 클래스는 해당 메서드를 재정의하고 있으며 **직접 구현한 클래스의 경우엔 재정의하는 것이 권장된다.** 
+
+자바가 기본 제공하는 출력관련 메서드에서는 기본적으로 전달된 오브젝트의 인스턴스에 대해서는 그 클래스가 가진 `toString()`메서드를 호출하여 문자열을 반환 받아 해당 문자열을 출력하도록 되어있다.
+
+#### 11.3.4 객체 복제(`clone()`)
+
+자바에서 객체 복제란 원본 객체와 동일한 값을 가지는 새로운 객체를 만드는 과정으로, 주요 목적은 원본객체의 값을 보호하기 위해서이다. 이 메서드는 클래스를 설계할 때 허용 여부를 결정할 수 있는데, 설계자가 `Cloneable`인터페이스를 구현하지 않으면 된다. 해당 경우에는 `CloneNotSupportedException`예외가 발생하여 복제가 실패한다.
+
+##### 얕은 복제(thin clone)
+
+* 객체 필드 중 참조 타입의 필드는 여전히 동일한 객체를 참조하게 된다.
+
+##### 깊은 복제(deep clone)
+
+* 객체 필드 중 참조 타입의 필드가 서로 다른 객체를 참조하게 된다.
+* 즉, `clone()`메서드를 재정의 할 때, 참조값을 필드로 갖는 경우에 새로운 객체를 생성해서 참조하게 해주어야 한다.
+
+**다만** 앞서 소개한 *Effective Java*의 저자는 `clone()`메서드를 제공하는 것을 추천하지 않으며, 이를 대체하는 **복사 생성자**자나 **복사 팩터리**를 제공하던지 아니면 아예 복제 기능을 제공하지말라고 말한다. 일단 자바 API 도큐먼트가 명시하는 `clone()`메소드가 지원해야할 규약이 너무 "느슨"하며, 해당 클래스가 상속이 되거나 하면 문제가 복잡해지기 때문이다. 관련해서 해당 서적에 자세히 서술되어있으니 참고하면 된다.
+
+#### 11.3.5 객체 소멸자(`finalize()`)
+
+메모리에 대한 관리를 자바는  Garbage Collector가 자동적으로 해준다. 이때 GC가 호출하는 메서드를 소멸자, 즉 `finaliza()`고 하는데, 해당 메소드는 기본적으로 실행 내용이 없다. 클래스 생성시 메소드를 소멸자 메서드를 재정의하면 소멸전에 필요한 추가적인 프로세스를 수행할 수 있다. 다만 GC가 인스턴스를 대상으로 가비지 컬렉션을 수행하는 순서 및 시점을 개발자가 통제할 수 없기 때문에 `finalize()`를 명시적으로 호출하거나 하는 방법으로 정확하게 통제하는 것도 고려해봄직하다.
+
+### 11.4 `Objects` 클래스
+
+관례적으로 자바에서는 `AAA`라는 이름의 클래스가 있고, 유사한 이름의 `AAAs`라는 클래스가 있거나 정의한다면, 해당 클래스는 `AAA`클래스를 지원하기 위한 기능을 가진 **`static` 메서드들**로 구성된 유틸리티 클래스이다. `Objects`클래스도 마찬가지로 `Object`를 지원하기 위한 목적의 정적 메서드들을 가지고 있다.
+
+#### 11.4.1 객체 비교(`compare(T a, T b, Comparator<? super T> c) `)
+
+객체 비교 메서드는 같은 타입의 두 객체를 비교하여 a > b일때는 양수, a = b이면 0, 그리고 a < b 이면 양수를 리턴하는 메서드이다. 이를 재정의 할 경우엔 이 원칙을 지켜주어야 한다. 
+
+#### 11.4.2 동등 비교(`equals()`와 `deepEquals()`)
+
+`Object` 클래스의 `equals()`메서드와 유사하게, 유틸리티 클래스인 `Objects` 또한 동등비교 메서드를 두 개 제공하는데, 기본 적으로는 객체의 구현 클래스에 정의된 `equals()`메서드를 참고하지만, 해당 메서드 호출전에 비교연산자로 동등비교를 진행하기 때문에 만약 두 객체가 모두 `null`일 경우엔 `true`를 반환한다.
+
+```java
+//java.lang.Objects
+public static boolean equals(Object a, Object b) {
+    return (a == b) || (a != null && a.equals(b));
+}
+```
+
+`deepEquals()`의 경우 기본적으로 `equals()`와 동일한 역할을 수행하지만, 객체가 배열일 경우, 배열의 모든 항목 값을 확인하여 비교 후 결과를 리턴한다. 이 과정에서 `Arrays.deepEqauls(Objectp[] a, Object[] b)`를 아래와 같이 사용하기 때문에 두 결과가 같다.
+
+```java
+//java.lang.objects
+public static boolean deepEquals(Object a, Object b) {
+    if (a == b)
+        return true;
+    else if (a == null || b == null)
+        return false;
+    else
+        return Arrays.deepEquals0(a, b);
+}
+```
+
+#### 11.4.3 해시코드 생성(`hash()`,`hashCode()`)
+
+`Objects.hash()`서드는 매개 값으로 `Object` 값들이 다수가 주어지는데, 이 주어진 매개값으로 생성된 배열에 대한 `Arrays.hashCode()`를 호출하여 얻은 해시코드를 바이패스하여 반환한다. 
+
+```java
+//java.lang.Objects
+public static int hash(Object... values) {
+    return Arrays.hashCode(values);
+}
+```
+
+이 메소드는 클래스를 생성하여, `hashCode()`메서드를 재정의할 때 사용하는데, 해당 클래스의 필드들로부터 `hash()`를 호출하여 얻어낸 해시 값을 반환하도록 재정의 하면 동일 필드값을 가지는 객체는 동일 해시코드를 가지게 할 수 있다.
+
+`Objects.hashCode()`의 경우 일반적으로 `Object.hashCode()`를 재사용하여 동일한 값을 리턴하지만, 객체가 `null`일 경우에만 0을 리턴하는 로직이 추가되어 있다.
+
+#### 11.4.4 널 여부 조사(`isNull()`, `nonNull()`, `requireNonNull()`)
+
+`isNull()`은 매개 값이 `null`일 경우엔 `true`, `nonNull()` 메서드는 `null` **아닐**경우에 `true`를 반환한다. `requireNonNull()` 아래와 같이 세 가지 경우로 오버로딩 되어있다.
+
+| 리턴타입 | 매개변수           |설명(리턴 값 및 예외)                                        |
+| -------- | ------------------------------------ | ------------------------------------------------------------ |
+| `T`      | `(T obj)`          |not null → `obj`<br />null → `NullPointerException`          |
+| `T`      | `(T obj, String message)`            | not null → `obj`<br />null → `NullPointerException(message)` |
+| `T`      | `(T obj, Supplier<String> supplier)` | not null → `obj`<br />null→`NullPointerException(supplier.get())` |
+
+#### 11.4.5 객체 문자 정보(`toString()`)
+
+`Objects.toString()`은 객체의 문자 정보를 리턴하는 메서드로 두 개로 오버로딩 되어있다.
+
+| 리턴타입 | 매개변수       |설명                                                |
+| -------- | -------------------------------- | --------------------------------------------------- |
+| `String` | `(Object o)`   |not null → `o.toString()`<br />null → `"null"`      |
+| `String` | `(Object o, String nullDefault)` | not null → `o.toString()`<br />null → `nullDefault` |
+
+2번 째 메소드의 경우 값이 널이면, 매개변수로 넘겨준 디폴트 문자열을 리턴하는 로직이다.
+
+### 11.5 `System` 클래스
+
+`java.lang`패키지의 `System`클래스는 JVM위에서 실행되는 자바 프로그램이 운영체제의 기능을 접근하기 위해 필요한 클래스이다. `System` 클래스의 특징으로는 모든 필드와 메서드가 `static`으로 구성된다는 점이다.
+
+#### 11.5.1 프로그램 종료(`exit()`)
+
+JVM을 강제 종료시키는 메서드로, 매개값으로 `int`를 받는다. 일반적으로 0을 전달하면 **정상종료**이고 그외의 값은 비정상으로 취급한다. `System.setSecurityManager()`메서드를 통해 `checkExit()`메서드를 재정의 한, `SecurityManager`타입의 객체를 매개변수로 넘겨주면 `exit()` 호출 시의 매개변수에 대한 상세 시나리오 설정을 할 수 있다. 아래는 그 예시이다.
+
+```java
+System.setSecurityManager(new SecurityManager(){
+    @Override
+    public void checkExit(int status){
+        if(status !=5) throw new SecurityException();
+    }
+});
+```
+
+#### 11.5.2 쓰레기 수집기 실행(`gc()`)
+
+앞서 `finalize()`에서 살펴본 것과 같이, 자바는 메모리 관리를 JVM의 쓰레기 수집기에 위임한다. 코드로 할 수 있는 부분은 `System.gc()`를 호출해서 쓰레기 수집기를 동작하게 하는 것인데, 이마저도 수집기를 최대한 빠른 시간안에 작동하도록 요청하는 과정이다.
+
+#### 11.5.3 현재 시각 읽기(`currentTimeMills()`, `nanoTime()`)
+
+각각 컴퓨터의 시계로부터 현재 시간을 읽어서 밀리세컨드와 나노세컨드 단위의 `long` 값을 리턴하는 메서드이다.
+
+#### 11.5.4 시스템 프로퍼티 읽기(`getProperty()`)
+
+`System.getProperty()` 메서드는 시스템 프로퍼티를 `Properties`타입으로 반환하는데, 키와 값으로 구성된 컬렉션으로 대표적인 키와 값은 아래와 같다.
+
+| 키(key)         | 설명                      |
+| --------------- | ------------------------- |
+| `java.version`  | 자바의 버젼               |
+| `java.home`     | 사용하는 JRE 설치경로     |
+| `os.name`       | OS 이름                   |
+| `file.seprator` | 파일 시스템 구분자        |
+| `user.name`     | 사용자 이름               |
+| `user.home`     | 사용자 홈 디렉토리        |
+| `user.dir`      | 사용자 현재 작업 디렉토리 |
+
+#### 11.5.5 환경 변수 읽기(`getenv()`)
+
+운영체제에서 실행되는 프로그램에게 제공할 목적으로 관리되는 변수를 **환경 변수**라고 하는데, 일반적으로 이름과 값으로 관리되는 문자열이다. `System.getenv()`메소드를 통해 이름에 해당하는 값을 매개변수로 전달하면, 해당 이름을 가진 환경변수 문자열 형식으로 리턴하게 된다.
+
+### 11.6 `Class` 클래스
+
+자바의 `java.lang.Class` 클래스는 자바에서 사용하는 클래스와 인터페이스의 메타 데이터를 관리하기 위한 클래스이다. 
+
+#### 11.6.1 `Class` 객체 얻기(`getClass()`, `forName()`)
+
+`getClass()` 메서드는 모든 클래스의 최상위 클래스인 `Object`가 가지고 있는 메소드로, 모든 클래스에서 해당 메소드를 호출하면 `Class`타입의 객체를 반환한다.
+
+```java
+Object object = new Object();
+Class class1 = object.getClass();
+```
+
+객체 생성(초기화)을 하지 않고, `Class`타입 객체를 얻기 위해선, 정적 메서드인 `Class.forName()`메서드를 사용한다. `Class` 는 `private`생성자를 가지고 있어서 `new`키워드를 사용불가능 하다.
+
+```java
+public static Class<?> forName(String className) throws ClassNotFoundException {
+	...
+}
+```
+
+`forName()`메서드는 `ClassNotFoundException`을 발생시킬 수 있는 메서드이기 때문에, 호출시에 예외 처리를 반드시 해야 한다.
+
+#### 11.6.2 리플렉션
+
+`Class` 타입의 객체가 가진 아래의 3가지 메서드는 해당 클래스의 생성자, 필드, 메서드 정보를 알아낼 수 있고 이것을 자바에서 **리플렉션**이라고 부른다.
+
+* `getDeclaredConstructors()`: 클래스의 **선언**된 생성자들을 `Constructor`  배열로 리턴한다.
+* `getDeclaredMethods()`: 클래스의 **선언**된 메서드들을 `Method`배열로 리턴한다
+* `getDeclaredFields()`: 클래스의 **선언**된 메서드들을 `Fields`배열로 리턴한다.
+
+여기서 리플렉션 메서드가 리턴하는 객체들은 모두 `java.lang.reflect`패키지에 소속된 클래스들이다. 또한 만약에 상속되어있는 클래스의 `public`멤버까지 얻고 싶다면, `getFields()`, `getMethods()`를 사용해야 한다.
+
+#### 11.6.3 동적 객체 생성(`newInstance()`)
+
+`Class` 객체의 `newInstance()` 메서드를 호출하면 해당 클래스의 객체가 생성된다. 이는 컴파일 시점에는 클래스 이름이 결정되지 않지만, 런타임 시점에 클래스 이름이 결정되는 경우에 매우 유용하다.
+
+예를들어 `AAA`라는 인터페이스를 구현한 `BBB` 클래스와 `CCC`클래스가 있는 경우, `Class.forName()`의 메소드를 호출할 때의 매개변수를 런타임시점에 지정하면, `Class`타입의 객체가 생성되고, 해당 객체에서 `newInstance()`를 호출 하면 된다.
+
+```java
+Class class1 = Class.forName(런타임시결정되는문자열);
+AAA aaa = (AAA) class1.newInstance();
+```
+
+단 `newInstance()`를 사용하기 위해서는 해당 클래스에 디폴트 생성자가 있어야 하고, 그렇지 않은 경우엔 리플렉션을 통해 `Constructor`객체를 얻어 호출할 수 있다. 또한 `newInstance()`메서드는 체크 예외를 발생시키므로 호출시 반드시 예외처리 코드가 필요하다.
+
+### 11.7 `String` 클래스
+
+#### 11.7.1 `String` 생성자
+
+자바의 문자열은 `java.lang.String` 클래스 타입의 객체로 관리되는데, 문자열 리터럴의 경우 알아서 `String`객체로 생성되지만, `new`키워드를 활용한 생성자의 접근도 당연히 가능하다. `String`클래스는 그 활용도와 더불어 다수의 생성자를 제공하고 있는데 사용 빈도가 높은 생성자는 아래와 같다.
+
+```java
+///배열 전체를 String 객체로 생성
+String str = new String(byte[] bytes);
+//지정한 문자셋으로 디코딩
+String str = new String(byte[] bytes, String charsetName);
+
+//배열의 offset 인덱스 위치부터 length만큼 String 객체로 생성
+String str = new String(byte[] bytes, int offset, int length);
+//지정한 문자셋으로 디코딩
+String str = new String(byte[] bytes, int offset, int length, String charsetName);
+```
+
+`System.in.read()`메서드에 매개변수로 바이트배열을 넘겨주면, 입력장치(키보드) 에서 읽어드린 내용을 바이트배열에 저장하고, 총 읽은 바이트 수를 `int`로 리턴한다. 언어나 Character Set에 따라 입력된 문자수와 바이트수가 다를 수 있다. 또한 커맨드 라인에서 입력을 하는 경우 캐리지리턴(`/r`)과 라인피드(`/n`)의 바이트값이 저장되기 때문에, 위에서 사용한 `offset`을 매개변수로 주는 생성자를 사용해, 제외할 수 있다.
+
+#### 11.7.2 String 메소드
+
+`String`클래스의 메서드 중 사용 빈도수가 높은 메서드는 다음과 같다. `String` 클래스의 메서드는 일반적으로 `String`을 리턴할 때 새로운 문자열을 생성해서 리턴한다(immutable)
+
+##### 문자 추출(`charAt(int index)`)
+
+인덱스로 주어진 값(0~문자열길이-1)에 해당하는 `char`값을 리턴한다.
+
+##### 문자열 비교(`equals(String str)`)
+
+`String` 클래스는 `Object` 클래스가 가진 `eqauls` 메서드를 오버라이드 해놓아서, 문자열의 실제 내용을 비교하여 비교해준다.
+
+##### 바이트 배열로 변환 (`getBytes()`, `getBytes(Charset charset)`)
+
+문네트워크로 문자열을 전송 하거나, 문자열을 암호화 해야 할 때 문자열을 바이트 배열로 변환해야 한다. 매개변수를 넘겨주지 않는 메서드는 기본 문자셋으로 인코딩 된 바이트 배열을 리턴하고, 오버라이딩 된 메서드의 경우 매개변수로 넘겨준 `Charset`으로 인콛딩된 바이트 배열을 넘겨준다.
+
+##### 문자열 찾기 (`indexOf(String str)`)
+
+전체 문자열에서 매개 값으로 주어진 문자열이 시작되는 인덱스를 리턴한다. 만약 존재하지 않을 경우엔 -1을 리턴한다.
+
+##### 문자열 길이 (`length()`)
+
+해당 문자열의 전체 길이를 리턴한다. 즉 포함하는 `char`의 수와 같다.
+
+##### 문자열 대치 (`replace(CharSequence target, CharSequence replace)`)
+
+문자열에서 안에서 첫 번째 매개값을 찾아, 두 번째 매개 값으로 대치한 뒤 **새로운 문자열**을 생성하고 리턴한다.
+
+##### 문자열 잘라내기 (`subString(int beginIndex)`, `subString(int beginIndex, int endIndex)`)
+
+매개 변수가 하나일 경우, 해당 인덱스부터 끝까지 잘라낸 문자열을 반환하고, 두 개 일경우 첫 번째 인덱스에서 시작하여, 두 번째 인덱스까지의 문자열을 리턴한다.
+
+##### 알파벳 소·대문자 변경(`toLowerCase()`, `toUpperCase()`)
+
+해당 문자열의 영문자를 모두 대문자나 소문자로 변경해준다. 기존 문자열을 변경하는 것이 아니라 새로운 `String`객체를 생성하는 것이다. 일반적으로 대소문자를 무시하고 비교할 때 사용하기도 하는데(`equals()`), `eqaulsIgnoreeCase()`를 사용하면 대소문자 변환을 하지 않아도 된다.
+
+##### 문자열 앞뒤 공백 잘라내기(`trim()`)
+
+문자열의 앞뒤 공백을 잘라낸 새로운 `String` 객체를 반환한다.
+
+##### 문자열 변환 (`valueOf(int i)`)
+
+`int` 뿐만아니라 프리미티브 타입 리터럴이나 변수를 받아서, 문자열로 반환한다.
+
+### 11.8 `StringTokenizer` 클래스
+
+문자열이 특정 구분자를 포함하고 있을 경우, 구분자를 기준으로 부분 문자열을 분리할 수 있다. 이를 위해 `String`클래스는 `split()` 이라는 메소드를 제공한다. 이 경우 **정규 표현식**을 사용하기 때문에, 문자로 구분하는  `java.util` 패키지의 `StringTokenizer`클래스를 사용할 수 있다.
+
+#### 11.8.1 `split()`메소드
+
+예를 들어 아래와 같은 문자열에서 사람 이름만 뽑아내고 싶은 경우에,
+
+```java
+String text = "홍길동&이수홍,박연수,김자바-최명호";
+String[] names = text.split("&|,|-") // |(파이프)는 정규 표현식에서 or로 취급
+```
+
+위와 같이 정규표현식을 사용한 문자열을 매개변수로 넘겨주면, 이름만 추출하여 문자열 배열에 반환할 수 있게 된다.
+
+#### 11.8.2 `StringTokenizer` 클래스
+
+문자열이 만약 한 종류의 구분자로 연결 되어 있을 때에는, `StringTokenizer`클래스를 사용하면 문자열을 분리해낼 수 있다. 만약 두 번째 매개변수가 생략되면 디폴트 구분자인 공백(space)이 구분자로 사용된다.
+
+```java
+StringTokenizer st = new StringTokenize("문자열", "구분자");
+```
+
+이렇게 생성된 `StringTokenizer` 객체는 클래스가 가진 메서드를 호출하여 활용할 수 있다.
+
+| 리턴타입  | 메서드            | 설명                          |
+| --------- | ----------------- | ----------------------------- |
+| `int`     | `countTokens()`   | 현재 남아있는 토큰의 수       |
+| `boolean` | `hasMoreTokens()` | 토큰이 남아있는지에 대한 여부 |
+| `String`  | `nextToken()`     | 토큰을 하나 꺼내옴            |
+
+### 11.9 `StringBuffer`, `StringBuilder` 클래스
+
+앞서서 살펴 봤듯이, `String` 클래스가 가진 문자열 조작 메서드들은 `String`을 반환할 때, 새로운 `String` 객체를 생성하여서 리턴한다. 이는 `String` 객체를 +연산할 때에도 마찬가지이다. 문자열을 +연산자를 사용하여 결합 할때에는 매번 새로운 `String` 객체를 만들고 변수가 새로운 객체를 생성하기 대문에, 프로그램 성능에 영향을 주게 된다.
+
+`StringBuffer` 또는 `StringBuilder`클래스는 내부적으로 문자열을 저장하는 내부 버퍼를 가지고 있어서, 이 안에서 추가, 수정, 삭제 작업을 할 수 있도록 해준다. 즉 조작을 위한 메서드를 호출하여도 새로운 객체를 만드는 오버헤드가 없는 것이다. 두 메서드의 차이는, `StringBuffer`는 멀티스레드 환경에서 사용하도록 ㄷ동기화를 보장하지만, `StringBuilder`는 단일 스레드 환경에서만 사용핟도록 설계되어 있다는 점이다.
+
+두 클래스의 경우 3가지의 생성자를 제공한다. 
+
+```java
+StringBuilder sb = new StringBuilder(); //16개의 문자 저장 가능
+StringBuilder sb = new StringBuilder(16); //버퍼 크기 지정
+StringBuilder sb = new StringBuilder("Java"); //초기 문자열 지정
+```
+
+그리고 이렇게 완성된 객체는 아래의 메서드들을 활용하여 원하는 작업을 할 수 있다.
+
+| 메서드                  |설명                                             |
+| ----------------------------------------- | ------------------------------------------------ |
+| `append(...)`           |문자열 끝에 주어진 매개 값을 추가                |
+| `insert(int offset, ...)`                 | offset으로 주어진 순서 뒤에 매개값 추가          |
+| `delete(int start, int end)`              | index 구간의 문자열 일부를 삭제                  |
+| `deleteCharAt(int index)`                 | index의 문자를 삭제                              |
+| `replace(int start, int end, String str)` | index 구간에 문자열 일부를 매개 값 문자열로 대치 |
+| `StringBuilder reverse()`                 | 문자열 순서를 뒤바꾼 새로운 객체 반환            |
+| `setCharAt(int index, char ch)`           | 주어진 index의 문자를 다른 문자로 대치           |
+
+### 11.10 정규 표현식과 `Pattern` 클래스
+
+특정 문자열이 약속된 형식을 따르는지 검사할 때, 정규표현식을 통해 작성한 문자열과 비교하는 방법으로 검증할 수 있다.
+
+#### 11.10.1 정규 표현식 작성 방법
+
+정규 표현식에 대한 작성법은 `java.util.regex.Pattern` 클래스를 찾아, summary of regular-expression constructs를 참고하면 된다. 정규 표현식을 작성하는데 알아야할 기본 규칙을 알아보자.
+
+| 기호  | 설명                                                         |
+| ----- | ------------------------------------------------------------ |
+| []    | 한개의 문자 ex) [abc] => a,b,c 중 하나의 문자                |
+| [^]   | 제외 한 한개의 문자 ex) [<pre>^abc] => a,b,c를 제외한 하나의 문자 |
+| [-]   | 특정 구간 중 한개의 문자 ex) [a-zA-Z] => a~z, A~Z 중 하나의 문자 |
+| \d    | 한 개의 숫자, [0-9]와 동일                                   |
+| \s    | 공백                                                         |
+| \w    | 한 개의 알파벳 또는 한 개의 숫자, [a-zA-z_0-9]와 동일        |
+| ?     | 없음 또는 한 개                                              |
+| *     | 없음 또는 한 개 이상                                         |
+| +     | 한 개 이상                                                   |
+| {n}   | 정확히 n개                                                   |
+| {n,m} | n개에서부터 m개 까지                                         |
+| ()    | 그룹핑                                                       |
+
+#### 11.10.2 `Pattern`클래스
+
+정규 표현식으로 문자열을 검증할때에는 `java.util.regex.Pattern` 클래스를 사용한다. 해당 클래스의 정적 메서드인 `matches()`를 사용하면 검증 결과를 `boolean`타입으로 반환한다.
+
+```java
+boolean result = Pattern.matches("정규식", "검증할 문자열");
+```
+
+### 11.11 Arrays 클래스
+
+앞서 살펴본 바와 같이, 특정 클래스 이름에 `s`가 붙은 클래스는 해당 클래스를 지원하는 유틸리티성 클래스이다. `Arrays` 클래스는 배열에 대한 유틸리티 기능을 지원하는 클래스로 모든 메서드가 `static`으로 선언되어 있어 객체생성 없이 바로 사용할 수 있다.
+
+#### 11.11.1 배열 복사
+
+배열복사에 사용되는 유틸리티 메서드는 대표적으로 두개가 있다.
+
+```java
+//java.util.Arrays
+public static <T> T[] copyOf(T[] original, int newLength){}
+public static <T> T[] copyOfRange(T[] original, int from, int to) {}
+```
+
+두 메서드 모두 첫 번째 매개변수로 전달한 타입배열과 일치하는 타입의 배열을 리턴하는데, 전자의 경우 0번 인덱스에서 시작하여 `newLength-1`인덱스까지의 복사하여 새로운 `newLength`길이의 배열을 리턴한다. 후자는 시작 인덱스와 종료 인덱스를 정할 수 있으며, 종료 인덱스는 `to`값보다 **하나 작은 값이다.**  (아래참고)
+
+```java
+char[] arr1 = {'J','O','S','H','U','A'};
+char[] arr2 = Arrays.copyOfRange(arr1, 1, 3);
+System.out.println(arr2) // [O,S] 출력
+```
+
+#### 11.11.2 배열 항목 비교
+
+배열 항목 비교는 **11.4.2 동등 비교(`equals()`와 `deepEquals()`)**를 참고
+
+#### 11.11.3 배열 항목 정렬
+
+배열의 항목을 정렬하기 위해선 해당 배열의 값이 정렬 가능한 타입의 값이어야 한다. 기본타입(primitive)과 `String`의 배열객체는 `Arrays.sort()`의 매개값으로 전달하면 자동으로 오름차순 정렬을 해준다. 아래 코드를 참고하면 **`DualPivotQuickSort`**를 사용한 것을 알 수 있다.
+
+```java
+//java.util.Arrays
+public static void sort(int[] a) {
+    DualPivotQuicksort.sort(a, 0, a.length - 1, null, 0, 0);
+}
+```
+
+만약 이외의 타입을 값으로 하는 배열에서 정렬 메서드를 사용하기 위해서는, 반드시 그 타입이 `Comparable` 인터페이스를 구현해야 하며, 구현시에는 `public int compareTo()` 메서드를 `@Override`하게 되어있다. `String`의 경우도 해당 메서드를 재정의 하고 있는데 아래와 같다.
+
+```java
+//java.lang.String
+public int compareTo(String var1) {
+    int var2 = this.value.length;   //자신의 char 배열 길이
+    int var3 = var1.value.length;   //매개변수의 char 배열 길이
+    int var4 = Math.min(var2, var3); //두 길이중 작은 값
+    char[] var5 = this.value; // 자신의 char 배열 복사해서 생성
+    char[] var6 = var1.value; // 매개변수의 char 배열 복사해서 생성
+
+    for(int var7 = 0; var7 < var4; ++var7) { //두 배열중 짧은 길이만큼 반복
+        char var8 = var5[var7]; //자신: 0부터 끝까지 문자를 하나씩 선택
+        char var9 = var6[var7]; //매개변수: 위와 같은 순서의 문자 선택
+        if (var8 != var9) { //두 개가 다르면
+            return var8 - var9; // 크기 비교해서 양수 or 음수 리턴
+        }
+    }
+	// 반복문 종료시, 길이가 다르면 양수 or 음수 리턴
+    // 길이가 같으면 완전 동일 문자열로 판단하여 0 리턴
+    return var2 - var3;
+}
+```
+
+`compareTo()` 메서드는 반드시 자신과 같은 타입을 매개변수로 받고, 객체별로 개발자나 설계자가 정의 한 비교 로직을 통해, 객체 자신이 매개변수보다 크면 양수, 작으면 음수, 같으면 0을 리턴한다. `String.compareTo()`를 살펴보면 이 원리를 이해할 수 있다. (주석 참고)
+
+#### 11.11.4 배열 항목 검색
+
+`Arrays.binarySearch()` 메서드를 사용하면 배열 항목중에 원하는 값이 어디에 위치하고 있는지를 찾을 수 있다. 다만 이진탐색 알고리즘은 배열이 정렬되어있음을 전제로하기 때문에, 해당 메서드 호출전에 배열을 오름차순으로 정렬해놓아야 한다. 
+
+```java
+//java.util.Arrays
+public static <T> int binarySearch(T[] a, T key) {}
+```
+
+리턴 값은 찾고자 하는 `key`값이 위치한 인덱스 값을 `int`로 반환하며, 만약 값을 찾지 못할 경우 `-1`을 반환한다.
+
+### 11.12 Wrapper(포장) 클래스
+
+포장 클래스는 기본타입의 값을 갖는 객체를 생성하기 위한 클래스로 자바에서 기본 제공하는 클래스이다. 그 중 하나인 `Integer`클래스를 살펴보면 아래와 같이 포장클래스에 대해서 설명하고 있다.
+
+```java
+//java.lang.Integer
+
+/**
+ * The {@code Integer} class wraps a value of the primitive type
+ * {@code int} in an object. An object of type {@code Integer}
+ * contains a single field whose type is {@code int}.
+ *
+ * <p>In addition, this class provides several methods for converting
+ * an {@code int} to a {@code String} and a {@code String} to an
+ * {@code int}, as well as other constants and methods useful when
+ * dealing with an {@code int}.
+ * ...
+ */
+```
+
+정리 하자면, 
+
+* 포장클래스는 대응 되는 기본 타입을 오브젝트 형태로 감싸고 있다.
+* 해당 클래스의 객체는 감싸고 있는 기본타입의 필드를 하나씩 가지고 있다.
+* 추가적으로, `String`으로의 변환과 같이 기본타입을 다룰 때 유용한 **상수**나 **메서드**를 포함하고 있다.
+
+#### 11.12.1 박싱(Boxing)과 언박싱(Unboxing)
+
+##### 박싱: 기본 타입 ▶ 포장 객체
+
+박싱의 경우엔 생성자에 기본 타입을 넘겨주거나 해당 값과 동일한 의미의 문자열 전달하면 된다. 단 `char`의 경우엔 문자열을 사용한 생성자를 지원하지 않는다. 생성자 없이도 각 포장 클래스가 가진 `static` 메서드를 이용해서 객체를 생성할 수 있다.
+
+```java
+Integer obj = Integer.valueOf(1000);
+Integer obj = Integer.valueOf("1000");
+```
+
+##### 언박싱: 포장 객체 ▶ 기본 타입
+
+언박싱은 포장 클래스가 가진 `*Value()`메소드를 통해서 얻을 수 있는데 `*`는 기본 타입명이 들어 간다.
+
+```java
+Integer obj = Integer.valueOf(1000);
+int value1 = obj.intValue();
+```
+
+#### 11.12.2 자동 박싱과 언박싱
+
+위에서 살펴본 것은 명시적인 박싱과 언박싱이지만, **자바5** 부터는 기본타입과 포장 객체간의 변환이 묵시적으로도 일어나게 된다.
+
+```java
+Integer obj = 100; //자동 박싱
+int value1 = obj; //자동 언박싱
+int value2 = obj + 100; //자동 언박싱 (프리미티브 타입처럼 연산도 가능)
+
+List<Integer> list = new ArrayList<Integer>();
+list.add(200); //컬렉션에도 자동박싱이 가능
+```
+
+#### 11.12.3 문자열을 기본 타입 값으로 변환
+
+앞에서 생성자나, `valueOf` 메서드에서 살펴본 것처럼 포장 클래스는 문자열을 매개변수로 하여 값으로 취급할 수 있다. 이때 사용하는 `static` 메서드인 `parse*()`메서드를 사용하면 객체 생성 없이 문자열을 쉽게 기본타입으로 변환 할 수 있다.
+
+```java
+int value1 = Integer.parseInt("10");
+```
+
+#### 11.12.4 포장 값 비교
+
+포장 객체의 변수는 heap 영역에 저장되는 객체의 주소값만 가지고 있기 때문에, 비교 연산자로는 매우 제한적인 비교(자바 언어 명세서에 규칙 존재), 주소값을 비교하여 원하는 값을 얻을 수 없다. 따라서 각 포장 클래스마다 오버라이딩하고 있는 `equals()` 메서드를 사용하는 것이 바람직하다.
+
+### 11.13 `Math`, `Random` 클래스
+
+#### 11.13.1 `Math` 클래스
+
+`java.lang.Math` 클래스는 수학계산에 사용하는 로직들을 담은 정적메서드만을 제공하는 클래스이다. 대표적으로 `Math.random()`메서드가 있는데 이를 사용해서 0.0 과 1.0 범위에 속하는 난수를 얻어 사용한다. 이외의 메서드는 Math.java 파일 참고
+
+#### 11.13.2 `Random` 클래스
+
+로 전에 살펴본 `Math.random()`클래스가 `double`타입의 0.0 ~ 1.0 난수를 반환 한다면, `Random` 클래스를 사용하면 `boolean`, `int`, `long`, `float`, `double` 난수를 얻을 수 있다.
+
+| 리턴값    | 메서드(매개변수) | 설명                                          |
+| --------- | ---------------- | --------------------------------------------- |
+| `boolean` | `nextBoolean()`  | `true` or `false` 리턴                        |
+| `double`  | `nextDouble()`   | 0.0 <= 리턴값 < 1.0                           |
+| `int`     | `nextInt()`      | -2<sup>31</sup> <= 리턴값 <= 2<sup>31</sup>-1 |
+| `int`     | `nextInt(int n)` | 0 <= 리턴값 < n                               |
+
+`Random` 클래스가 가진 또 다른 특징은 생성자로 종자 값을 줄 수 있는데 해당 종자 값은 내부적으로 사용되는 난수발생기에 초기 값으로 설정되는데, 해당 초기 값이 같을 경우 같은 순서의 난수를 발생시킨다. 따라서 **난수 발생을 이용한 기능에 대한 테스트를 구현하고 검증하는 과정에 활용할 수 있다.**
+
+### 11.14 `Date`, `Calendar` 클래스
+
+#### 11.14.1 `Date` 클래스
+
+`Date` 클래스의 생성자는 대부분 `Deprecated` 되어있기 때문에, 기본 생성자만 사용되는데, 기본 생성자는 시스템의 현재 날짜를 읽어서 `Date`객체를 생성한다. `toString()`메소드를 통해 문자열 포맷으로 된 날짜를 얻을 수 있다.
+
+#### 11.14.2 `Calendar`클래스
+
+`Calendar`클래스는 추상 클래스로, 각 지역과 문화권에 맞는 역법에 맞춘 클래스로 상속해서 쓰도록 되어있다. 따라서 `Calendar`에는 보편적으로 사용될 날짜 및 시간 계산을 위한 메소드들만 선언되어있고, 특정 역법에 맞춘 로직은 하위클래스에서 구현한다. 특별한 경우가 아니라면 `Calendar`클래스의 정적메소드인 `getInstance()`를 통해서 운영체제에 설정된 Timezone에 맞는 `Calendar`하위 객체를 얻을 수 있다. 또한  `Calendar`클래스에 선언된 `Calendar.MONTH` 나 `Calendar.YEAR` 등의 상수들을 인자로 하는 `get()` 메소드를 통해 관련 정보를 얻을 수 있다.
+
+### 11.15 `Format` 클래스
+
+`Format`클래스는 표현하고자 하는 데이터의 형식을 정하는 클래스로, `java.text`패키지안에  포함되어 있다.
+
+#### 11.15.1 숫자 형식 클래스(`DecimalFormat`)
+
+`DecimalFormat`클래스는 숫자 데이터를 원하는 형식으로 표현하기위해 사용된다. 아래의 패턴들을 생성자 매개값으로 사용해서 생성된 `DecimalFormat`객체의 `format()`메서드에 숫자를 넘기면 해당 형식에 맞는 결과를 문자열로 돌려준다.
+
+|기호|의미|패턴 예| 1234.56 의 변환 결과|
+|---|---|---|---|
+|0|10진수 (빈자리는 0으로)|0<br/>0.0<br/>00000.0000|1235<br/>1234.6<br/>01234.5600|
+|#|10진수 (빈자리는 냅둠) | #<br/>#.#<br/>####.#### |1235<br/>1234.6<br/>1234.56|
+| .      | 소수점|#.0    |1234.6                         |
+| -      | 음수 기호               | +#.0<br/>-#.0            | +1234.6<br/>-1234.6            |
+| ,      | 단위 구분               | #,###.0|1,234.6                        |
+| E      | 지수 문자               | 0.0E0  |1.2E4                          |
+| ;      | 양수 음수 패턴 구분자   | +#,###;-#,###            | +1,234<br/>-1,234              |
+| %      | 100을 곱한 후 % 붙임    | #.#%   |123456%                        |
+| \u00A4 | 통화기호                | \u00A4 #,###             | $ 1,234                        |
+
+#### 11.15.2 날짜 형식 클래스(`SimpleDateFormate`)
+
+앞서서 살펴본 `Date`클래스에서 얻은 날짜정보를  형식 클래스와 패턴을 사용하여서 표현할 수 있다.
+
+|패턴 문자|의미|패턴 문자|의미|
+| ---- | ---- | ---- | ---- |
+|y|년|H|시(0~23)|
+|M|월|h|시(1~12)|
+|d|일|K|시(0~11|
+|D|일/365|k|(1~24)|
+|E|요일|m|분|
+|a|오전/오후|s|초|
+|w|주/year|S|밀리세컨드|
+|W|주/month|||
+
+예를 들어 `yyyy`는 연도를 4자리로 표기하라는 의미이고, `MM`, `dd`는 월과 일을 2자리로 표현하라는 의미이다. 아래는 그 예제이다.
+
+```java
+SimpleDateFormat sdf = new SimpleDateFormat("yyyy년 MM월 dd일");
+System.out.println(sdf.format(new Date())); //2019년 2월 28일
+```
+
+#### 11.15.3 문자열 형식 클래스 (`MessageFormat`)
+
+프로그램이 실행되는 런타임에 동적으로 데이터를 삽입해 문자열을 완성시킬때 사용하는 클래스가 `MessageFormat`클래스이다. 예를 들어 아래와 같은 정보의 문자열이 필요할 때,
+
+```powershell
+회원 ID: cleancoder
+회원 이름: 서기원
+회원 전화: 011-111-1111
+```
+
+`String`을 연결할 수 있는 연산자를 활용해서 출력할 문자열을 생성할 수도 있다. 결과는 동일하겠지만, `MessageFormat.format()`을 사용하면 미리 만들어놓은 형식을 담은 `String`과 결합하여서, 만들어 낼 수 있고, 코드 가독성을 높여서 개발자 입장에서도 결과를 예측할 수 있다.
+
+```java
+String fmt = "회원 ID: {0} \n회원 이름: {1} \n회원 전화: {2}";
+String result = MessageFormat.format(fmt, id, name, phoneNum);
+
+Object[] arg = {id, name, phoneNum};
+String result = MessageFormat.format(fmt, arg);
+```
+
+직접 매개변수에 변환이 될 변수를 넣어주어도 되고, 배열로 전달해도 된다. 이러한 `MessageFormat`클래스는 SQL문을 작성할 때에도 활용 될 수 있다.
+
+### 11.16 `java.time` 패키지
+
+Java 8이전에 사용되던 날짝와 시간관련 클래스인 `Date`와 `Calendar`는 메소드가 `Deprecated`되거나, 시간 조작이나 비교에는 부족한 부분이 있다. Java 8부터는 이러한 부분을 만족시키는 여러 API를 `java.time` 패키지에 추가하였다.
+
+|패키지|설명|
+|---|---|
+|`java.time`|핵심 API인 `LocaDate`, `LocalTime`, `LocalDateTime`, `ZonedDateTime`을 포함한다. ISO-8601의 달력시스템을 기초로한다|
+|`java.time.chrono`|위의 달력 시스템 이외에 다른 달력 시스템이 필요할 때 사용하는 API를 포함한다|
+|`java.time.format`|날짜와 시간을 파싱하고 포맷팅 하는 API들이 포함되어 있다|
+|`java.time.temporal`|날짜와 시간을 연산하기 위한 보조 API들이 들어있다|
+|`java.time.zone`|타임존을 지원하는 API들을 포함한다|
+
+#### 11.16.1 날짜와 시간 객체 생성
+
+`java.time`패키지에는 아래의 날짜와 시간을 표현하는 5개의 클래스가 있다.
+
+##### `LocalDate`
+
+날짜정보만을 저장할 수 있는 객체를 정적 메소드만을 사용해서 생성하는데, 현재 운영체제의 시간을 반영하는 `now()`와, 매개값으로 주어진 날짜 정보를 저장하는 `of()`가 있다.
+
+##### `LocalTime`
+
+시간정보만을 저장하는 클래스이다. `LocalDate`와 동일한 이름의 정적 메소드로 현재시간과 주어진 시간을 반환한다.
+
+##### `LocalDateTime`
+
+`LocalDate`와 `LocalTime`을 합친 클래스로, 날짜와 시간정보를 모두 저장한다. 동일하게 `now()`와 `of()`메소드로, 현재정보나 주어진 정보를 저장한 객체를 리턴한다.
+
+##### `ZonedDateTime`
+
+ISO-8601 달력 시스템의 정의를 따르는 타임존 날짜와 시간을 저장하는 클래스이다. 저장 형태는 `2019-02-29T19:42:24.017+09:00[Asia/Seoul]` 뒤에 붙는 `+09:00`은 해당 타임존이 협정세계시인 UTC와 얼마가 차이나는지를 표현하며, 존아이디는 타임존의 아이디이다. 일반적으로 다른 클래스와 달린 `now()`메소드에 `ZoneId`를 전달해야 하는데, 이 값은 `java.util.TimeZone`의 `getAvailableIDs()`메서드가 리턴하는 값들만 사용 가능하다.
+
+##### `Instant`
+
+특정 시점의 타임 스탬프를 획득하기 위해서 사용된다. 이렇게 생성한 객체를 서로 비교해서 두 시점간의 우선순위를 따질 수 있으며, UTC를 기준으로 삼는다. 자신을 매개변수로 하여 `boolean`타입을 리턴하는 `isBefore()`와 `isAfter()` 메소드를 포함한다.
+
+#### 11.16.2 날짜와 시간에 대한 정보 얻기
+
+`LocalDate`와 `LocalTime`이 제공하는 메소드들이다.
+
+| 클래스      | 리턴 타입 | 메소드(매개변수)  | 설명              |
+| ----------- | --------- | ----------------- | ----------------- |
+| `LocalDate` | `int`     | `getYear()`       | 년                |
+|             | `Month`   | `getMonth()`      | `Month`의 열거값  |
+|             | `int`     | `getMonthValue()` | 월                |
+|             | `int`     | `getDayOfYear`    | 일년의 몇 번째 일 |
+|`LocalDate`|`int`|`getDateOfMonth()`|월의 몇 번째 일|
+||`DayOfWeek`|`getDayOfWeek()`|요일|
+||`boolean`|`isLeapYear()`|윤년 여부|
+|`LocalTime`|`int`|`getHour()`|시간|
+||`int`|`getMinute()`|분|
+||`int`|`getSecond()`|초|
+||`int`|`getNano()`|나노초 리턴|
+
+`LocalDateTime`이나 `ZonedDateTime`은 위의 대부분의 메소드를 가지고 있지만, `isLeapYear()`는 `LocalDate`만 있기 때문에 `toLocalDate()`를 사용해서 변환후에 사용해야 한다. 또한 `ZonedDateTime`은 타임존 정보를 제공하는 `getZone()`이나 `getOffset()`을 가지고 있다.
+
+#### 11.16.3 날짜와 시간을 조작하기
+
+##### 빼기와 더하기
+
+빼기와 더하기에 사용되는 메소드들은 영어로 camel 표기법에 따라 [연산명]+[피연산자] 메소드 시그니쳐를 사용하고, 자기자신을 리턴타입으로 하며, 파라미터는 모두 `long`타입이다. 예를들어, `LocalDate`에서 3년을 뺴고 싶다면 아래와 같이 하면된다.
+
+```java
+LocalDate now = LocalDate.now();
+LocalDate threeYearBefore = now.minusYears(3);
+```
+
+또한 자기자신을 리턴하는 특성을 사용해서, 도트연산자 (`.`)를 통해 순차적으로 메소드 호출을 함으로써 연속적인 연산을 할 수 있다.
+
+##### 변경하기
+
+변경 메소드의 시그니쳐는 `with`+ [바꾸고자 하는 대상]이며, 한 가지 경우를 제외하고는 `int`를 매개변수로 받고, 리턴타입은 자기 자신이다. 예를 들어 현재 날짜에서 월만 바꾸고 싶다면 아래와 같이 하면 된다.
+
+```java
+LocalDate now = LocalDate.now();
+LocalDate notNow = now.withMonth(3);
+```
+
+날짜정보를 포함하는 클래스에서만 사용가능한 `with(TemporalAdjuster adjuster)` 메소드는 흔히 상대변경이라고 불리는데, 매개변수로 전달한 상대 날자 객체를 바탕으로 상대적인 날짜를 반환하며, 이 객체는 아래와 같이 `TemporalAdjusters`의 정적 메소드를 통해 얻을 수 있다.
+
+###### `TemporalAdjusters`의 정적 메소드 `TemporalAdjuster` 타입 객체 반환한다.
+
+|메소드(매개변수)|설명|
+|---|---|
+|`firstDayOfYear()`|금년 초하루|
+|`lastDayOfYear()`|금년의 마지막날|
+|`firstDayOfNextYear()`|내년 초하루|
+|`firstDayOfMonth()`|금월 초하루|
+|`lastDayOfMonth()`|금월 마지막날|
+|`firstDayOfNextMonth()`|익월 초하루|
+|`firstInMonth(DayOfWeek dayOfWeek)`|금월 첫번째 특정 요일|
+|`lastInMonth(DayOfWeek dayOfWeek)`|금월 마지막 특정 요일|
+|`next(DayOfWeek dayOfWeek)`|돌아오는 특정 요일|
+|`nextOrSame(DayOfWeek dayOfWeek)`|돌아오는 특정 요일(오늘 포함)|
+|`previous(DayOfWeek dayOfWeek)`|지난 특정 요일|
+|`previousOrSame(DayOfWeek dayOfWeek)`|지난 특정 요일(오늘 포함)|
+
+#### 11.16.4 날짜와 시간을 비교하기
+
+##### 날짜 비교
+
+| 리턴 타입 | 메소드(매개변수)                  |
+| --------- | --------------------------------- |
+| `boolean` | `isAfter(ChronoLocalDate other)`  |
+| `boolean` | `isBefore(ChronoLocalDate other)` |
+| `boolean` | `isEqual(ChronoLocalDate other)`  |
+
+ ##### 시간 비교
+
+| 리턴 타입 | 메소드(매개변수)             |
+| --------- | ---------------------------- |
+| `boolean` | `isAfter(LocalTime other)`   |
+| `boolean` | `isBefore(LocalTime otherr)` |
+
+##### 날짜 차이
+
+
+| 클래스      | 리턴 타입 | 메소드(매개변수)                                   |
+| ----------- | --------- | -------------------------------------------------- |
+| `LocalDate` | `Period`  | `until(ChronoLocalDate other)`                     |
+| `Period`    | `Period`  | `beetween(LocalDate startDate, LocalDate endDate)` |
+
+##### 시간 차이
+
+| 클래스        | 리턴 타입  | 메소드(매개변수)                         |
+| ------------- | ---------- | ---------------------------------------- |
+| `LocalDate`등 | `long`     | `until(Temporal end, TemporalUnit unit)` |
+| `Duration`    | `Duration` | `beetween(Temporal start, Temporal end)` |
+
+##### `Period` & `Duration`
+
+각각 날짜와 시간의 양을 나타내며, 아래의 메소드를 통해서 해당 객체의 정보를 원하는 형식으로 표현한다.
+
+| 클래스     | 리턴타입 | 메소드(매개변수) |
+| ---------- | -------- | ---------------- |
+| `Period`   | `int`    | `getYears()`     |
+| `Period`   | `int`    | `getMonths()`    |
+| `Period`   | `int`    | `getDays()`      |
+| `Duration` | `int`    | `getSeconds()`   |
+| `Duration` | `int`    | `getNano()`      |
+
+#### 11.16.5 파싱과 포맷팅
+
+날짜와 시간 클래스는 날짜와 시간을 생성하는 Parsing, 그리고 반대로 문자열로 반환하는 Formatting 관련 메소드를 제공한다.
+
+##### 파싱(Parsing) 메소드
+
+날짜 시간 클래스에 모두 선언되어있으며, 자기자신을 리턴 타입으로 한다. 
+
+| 메소드(매개변수)                         |
+| ---------------------------------------- |
+| `parse(CharSequence)`                    |
+| `parse(CharSequence, DateTimeFormatter)` |
+
+매개변수를 하나만 받는 오버로딩된 첫 번째 메소드는 기본적으로 `ISO_LOCAL_DATE` 포매터를 사용하며 2019-02-28 과 동일한 형식이다.
+
+##### 포매팅(Formatting) 메소드
+
+| 리턴 타입 | 메소드(매개변수)                      |
+| --------- | ------------------------------------- |
+| `String`  | `format(DateTimeFormatter formatter)` |
+
+`DateTimeFormatter`의 형식대로 문자열을 리턴하는데 아래의 예제를 보자
+
+```java
+LocalDateTime now = LocalDateTime.now();
+DateTimeFormatter dtf = DatTimeFormatter.ofPattern("yyyy년 M월 d일 a h시 m분");
+System.out.println(now.format(dtf)); //2019년 2월 28일 오후 8시 36분
+```
+
