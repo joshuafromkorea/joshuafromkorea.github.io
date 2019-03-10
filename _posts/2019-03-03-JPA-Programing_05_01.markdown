@@ -80,7 +80,7 @@ public static void main(String[] args){
 
 이렇게 맺어진 클래스 관계와 인스턴스 관계는 아래와 같다.
 
-```mermaid
+<div class="mermaid">
 graph LR
 	subgraph 인스턴스관계
 	m1(member1)-->t1(team1)
@@ -89,7 +89,7 @@ graph LR
 	subgraph 클래스관계
 	Member-->|0..1|Team
 	end
-```
+</div>
 
 또한 마지막으로 아래의 코드처럼 객체의 참조를 사용해서 연관관계를 찾는 것을 **객체 그래프 탐색**이라고 한다.
 
@@ -440,12 +440,12 @@ Member findMember = teamA.getMembers(); //teamA에서 여전히 member1이 조�
 
 엔티티의 양방향 연관관계는 **2개의 단방향**연관관계 이기 때문에 변경이나 삭제시에도 이부분을 고려해 처리해줘야 한다. 즉 아래와 같은 형태가 생길 수 있는 것이다.
 
-```mermaid
+<div class="mermaid">
 graph LR
 m1(member1)-->tB
 tA(teamA)-->|삭제되지 않은 관계|m1
 tB(teamB)-->m1
-```
+<div>
 
 따라서 `setTeam()` 메소드가 호출 될때에는 기존의 팀관계를 찾아서 이를 정리하고 재설정하는 코드가 필요하다.
 
