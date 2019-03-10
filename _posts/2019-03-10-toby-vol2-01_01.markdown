@@ -1,0 +1,270 @@
+---
+layout: post
+title: "토비의 스프링 3.1 vol.2 1장 IoC 컨테이너와 DI-01"
+date: 2019-03-10
+categories:
+---
+
+# 토비의 스프링 3.1 vol.2
+
+토비의 스프링은 작년 하반기 부터 Group 스터디를 통해 공부하고 있다. 본 블로그를 개설하게 된 동기도 해당 그룹스터디에 가입해서 나의 부족함을 느끼고 자극을 받게 되어 만들었는데, 당시만 해도 내가 준비하는 주에도 머리가 뱅뱅돌만큼 어려웠었고, 다른분들이 공유해주시는 내용을 소화하기도 힘든 시간이었어서 블로그에 정리할 수준이 되지 못했다.
+
+vol.1을 전부 마친 뒤, 1달여간의 그룹스터디 방학이 끝나고 드디어 vol.2를 시작한다. 사실 방학기간동안에 vol.1을 모두 정리해서 포스팅 하자는 계획은 있었지만 생각대로 되지 않았고, 그룹 스터디 진도에 근접하게 스스로 정리해서 올리는 것을 목표로 한다. 
+
+토비님의 책은 Java책과 달리 한 챕터를 한 포스트로 정리해서 올리기에는 볼륨이 어마어마 하기에 일단 공부할 수 있는 부분까지 하고 되는대로 올려야 겠다. 물론 내가 share하는 준비를 해야하는 날에는 어김없이 전체 한장을 다 정리해야겠지만 말이다.
+
+---
+
+## 1장 Ioc 컨테이너와 DI
+
+IoC/DI는 그 유용성으로 인해 사실상 자바 프로그램의 표준모델이 되었다. 스프링 이외에도 IoC/DI 프레임워크들이 있지만, 스프링만큼 유연하고 강력한 수준을 제공하는 것은 없다. 1장에서는 그 부분을 예제를 통해 깨달을 수 있다.
+
+### 1.1 IoC 컨테이너: 빈 팩토리와 애플리케이션 컨텍스트
+
+스프링내부에서 **독립된 컨테이너**가 오브젝트의, 생성, 관계설정, 사용, 제거를, 어플리케이션 코드를 대신해서 해주기 때문에 우리는 스프링을 IoC 프레임워크라고 부른다. 그리고 이런 독립된 컨테이너를 **빈 팩토리** 또는 **어플리케이션 컨텍스트**라고 한다. 이 두명칭이 병행에서 사용되는 이유는 아래와 같은데,
+
+* 오브젝트의 생성 및 런타임 관계 설정(DI)의 관점 → 빈 팩토리
+* 엔터프라이즈 어플리케이션 필요한 컨테이너 기능 수행 → 어플리케이션 컨텍스트
+
+이 두가지 역할은 스프링 내부에서 아래의 두개의 인터페이스로 정의되어 있다.
+
+##### `BeanFactory` (스프링 4 기준) in `package org.springframework.beans.factory`
+
+```java
+public interface BeanFactory {
+    String FACTORY_BEAN_PREFIX = "&";
+
+    Object getBean(String var1) throws BeansException;
+
+    <T> T getBean(String var1, Class<T> var2) throws BeansException;
+
+    <T> T getBean(Class<T> var1) throws BeansException;
+
+    Object getBean(String var1, Object... var2) throws BeansException;
+
+    <T> T getBean(Class<T> var1, Object... var2) throws BeansException;
+
+    boolean containsBean(String var1);
+
+    boolean isSingleton(String var1) throws NoSuchBeanDefinitionException;
+
+    boolean isPrototype(String var1) throws NoSuchBeanDefinitionException;
+
+    boolean isTypeMatch(String var1, Class<?> var2) throws NoSuchBeanDefinitionException;
+
+    Class<?> getType(String var1) throws NoSuchBeanDefinitionException;
+
+    String[] getAliases(String var1);
+}
+```
+
+##### `ApplicationContext` (스프링 4기준) in `package org.springframework.context`
+
+```java
+public interface ApplicationContext extends EnvironmentCapable, ListableBeanFactory, HierarchicalBeanFactory, MessageSource, ApplicationEventPublisher, ResourcePatternResolver {
+    String getId();
+
+    String getApplicationName();
+
+    String getDisplayName();
+
+    long getStartupDate();
+
+    ApplicationContext getParent();
+
+    AutowireCapableBeanFactory getAutowireCapableBeanFactory() throws IllegalStateException;
+}
+```
+
+위의 interface 소스를 보면 알겠지만, 실제로는 `ApplicationContext` 가 `BeanFactory`의 하위 인터페이스 두개를 상속받고 있기 때문에, `ApplicationContext`의 사용을 통해 `BeanFactroy`를 상속받아서 사용하는 것이다.
+
+즉 스프링 어플리케이션은 최소한 1개의 `ApplicationContext`를 구현한 IoC 컨테이너를 사용하는 어플리케이션이 된다.
+
+#### 1.1.1 IoC 컨테이너를 이용해 어플리케이션 만들기
+
+IoC컨테이너를 만드는법은 `ApplicationContext`를 구현한 구현체중 하나의 인스턴스를 생성하는 것이다. 
+
+```java
+StaticApplicationContext ac = new StaticApplicationContext();
+```
+
+이렇게 만들어진 컨테이너가 역할을 하기 위해서는 최소한 2가지가 필요하다.
+
+##### 1. POJO 클래스
+
+어플리케이션의 **핵심 코드**를 담고있는 POJO 클래스를 준비해야 한다. POJO의 원칙을 따라 만든 클래스를 POJO 클래스라고 하는데,
+
+* 특정 기술과 스펙에서 **독립적**이어야 하고
+* 다른 POJO와 **느슨한 결합** 상태여야 한다.
+
+만약 지정한 사람에게 인사를 하는 `Hello`라는 클래스와 메시지를 받아서 출력하는 `Printer`인터페이스를 구현한 `StringPrinter` 클래스를 POJO로 만든다고 하면, 둘의 결합은 `Printer`라는 인터페이스로 느슨하게 결합되어 있으며, 언제든지 `StringPrinter`는 교체될 수 있다. 그리고 이러한 교체 및 결합을 `IoC` 컨테이너의 도움을 받으면 된다.
+
+여기서는 `Hello`와 `StringPrinter`를 연결하기로 고려한 상태이지만, 실제 POJO 코드를 설계할 때에는 **유연한 변경가능성**을 고려해야 한다.
+
+###### 인사기능을 가진 `Hello` 클래스
+
+```java
+public class Hello {
+    String name;
+    Printer printer;
+
+    public String sayHello(){
+        return "Hello " + name;
+    }
+
+    public void print(){
+        this.printer.print(sayHello());
+    }
+    
+    public void setName(String name){
+        this.name = name;
+    }
+
+    public void setPrinter(Printer printer) {
+        this.printer = printer;
+    }
+}
+```
+
+`Hello` 클래스가 알고있는 `Printer` 인터페이스는 기능을 정의 해놓은 메소드로만 이루어져 있다.
+
+###### 출력기능을 정의한 `Printer`인터페이스
+
+```java
+public interface Printer{
+    void print(String message);
+}
+```
+
+위 인터페이스를 구현한 클래스는 무한히 만들 수 있다, 정의된 기능이 어떻게 작동하는지를 작성하는게 구현한 클래스의 역할이다. 여기서는 `StringBuffer`를 사용하는 `StringPrinter`를 만든다.
+
+###### `StringBuffer`를 이용한 `StringPrinter` 구현 클래스
+
+```java
+public class StringPrinter implements Printer {
+    private StringBuffer buffer = new StringBuffer();
+    
+    @Override
+    public void print(String message) {
+        this.buffer.append(message);        
+    }
+
+    @Override
+    public String toString() {
+        return this.buffer.toString();
+    }
+}
+```
+
+다른방식으로 구현한 클래스도 만들 수도 있다.
+
+###### 콘솔 출력 방식의 `ConsolePrinter` 구현 클래스
+
+```java
+public class ConsolePrinter implements Printer {
+
+    @Override
+    public void print(String message) {
+        System.out.println(message);
+    }
+}
+```
+
+이렇게 **각자의 기능**에만 충실하게 독립된 4개의 POJO 클래스가 만들어졌다. 이것이 IoC 컨테이너가 필요한 최소한의 두 가지중 하나이다.
+
+##### 2. 설정 메타정보
+
+IoC 컨테이너의 기초적인 역할은 오브젝트의 **생성과 관리**이다. 스프링은 이런 컨테이너가 관리하는 오브젝트를 Bean이라고 부른다. 빈을 생성하고 관리하는 작업을 하기 위해 필요한 것이 바로 **설정 메타정보**이다.
+
+스프링의 설정 메타정보를 흔히 XML로 되어있다고 생각하는 것과 달리, 스프링의 메타정보는 `BeanDefinition`이라는 인터페이스로 표현된 순수한 추상정보다. 즉 어떠한 형태든 이런 추상정보의 형태로 정의되는 내용을 담은 형태의 데이터는 스프링의 메타정보가 될 수 있다. 물론 `BeanDefinition` 타입의 오브젝트로 변환하기 위해서 `BeanDefinitionReader`라는 인터페이스를 구현한 리더가 필요하다. 이러한 추상 Bean 메타정보는 아래와 같다.
+
+* Bean 아이디, 이름, 별칭: Bean 오브젝트를 **구분하는 식별자**
+* 클래스 또는 클래스 이름: Bean으로 만들 POJO 클래스 또는 클래스 정보
+* 스코프: 싱글톤, 프로토타입과 같은 빈의 **생성방식과 존재범위**
+* 프로퍼티 값 또는 참조: DI에 사용할 프로퍼티의 이름과 값, 그리고 참조하는 Bean의 이름
+* 생성자 파라미터 값 또는 참조: DI에 사용할 생성자 파라미터 이름과 값 또는 참조할 Bean의 이름
+* 지연된 로딩여부, 우선 빈 여부, 자동와이어링 여부, 부모 빈 정보, 빈팩토리 이름 등
+
+어떠한 형태로든 위와 같은 정보들이 구성되고, 이러한 정보들이 `BeanDefintion` 타입의 형태로 만들어지면, 스프링 IoC 컨테이너는 Bean정보를 읽어서 생성 및 주입을 하는 DI작업을 수행한다. 그리고 이렇게 만들어진 Bean 오브젝트들이 어플리케이션을 구성하고 동작하게 된다.
+
+###### IoC 컨테이너를 통한 어플리케이션 동작
+
+```mermaid
+graph LR
+
+	MRS[메타정보 리소스]
+	MRD(메타정보 리더)
+	MRS-.->MRD
+	POJO[POJO 클래스]
+	SM[설정 메타정보]
+	MRD-->SM
+	POJO-.->IOC
+	SM-.->IOC
+	IOC(IoC 컨테이너)
+	IOC-->APP
+	APP[어플리케이션]
+	
+	
+```
+
+메타정보로부터 IoC컨테이너를 거쳐서 어플리케이션이 만들어지는, 이런 오브젝트의 조합은 앞서 말한대로 XML파일과 같은 POJO이외의 외부 리소스를 기반으로 할 수도 있지만, 직접 코드로 만든 `BeanDefinition`의 메타정보로도 충분히 가능하다. 이를 한번 학습테스트로 검증해보자.
+
+###### 외부 메타정보 리소스가 아닌, 코드를 통한 Bean 메타정보 등록 및 생성
+
+```java
+StaticApplicationContext context = new StaticApplicationContext();
+context.registerSingleton("hello1", Hello.class);
+
+Hello hello1 = context.getBean("hello1", Hello.class);
+assertThat(hello1, is(notNullValue()));
+```
+
+위의 코드를 보면 IoC컨테이너를 생성하고, `Hello` 클래스의 싱글톤 빈정보를 등록한다. 그리고 등록한 빈을 생성했는지 여부를 `null` 테스트를 통해 진행하면 된다.
+
+위의 방법에서는 빈의 이름과 빈이 사용할 클래스 정보만을 제공했다. 따라서 나머지 값들은 IoC컨테이너인 `StaticApplicationContext`가 가진 디폴트 메타정보를 사용한 것이다. 직접 `BeanDefinition`타입의 설정 메타정보를 만들어서 등록할 수도 있다.
+
+###### `BeanDefinition`을 사용한 Bean 등록
+
+```java
+BeanDefinition helloDef = new RootBeanDefinition(Hello.class);
+helloDef.getPropertyValues().addPropertyValue("name", "Spring");
+context.registerBeanDefinition("hello2", helloDef);
+
+Hello hello2 = context.getBean("Hello2", Hello.class);
+assertThat(hello2.sayHello(), is("Hello Spring"));
+
+assertThat(hello1, is(not(hello2)));
+
+assertThat(context.getBeanFactory().getBeanDefinitionCount(), is(2));
+```
+
+`BeanDefinition` 인터페이스 구현체 중 `RootBeanDefinition`을 사용하여 `Hello`클래스에 대한 메타정보 오브젝트를 만든다. 그리고 `name`이라는 프로퍼티를 설정해주고, 이렇게 설정한 메타정보를 IoC컨테이너에 등록한다. 이후로는 이를 통해 만들어진 오브젝트의 프로퍼티값, 서로 다른 Bean여부, 그리고 IoC컨테이너가 가진 메타정보의 갯수를 검증한다.
+
+마지막으로 오브젝트 사이의 관계설정, 즉 DI되도록 하는 부분까지 `BeanDefinition` 구현체를 통해 코드로 설정하고 실행해보자.
+
+###### `Printer` 구현오브젝트를 `Hello` 오브젝트에 DI 하는 정보 테스트
+
+```java
+context.registerBeanDefinition("printer", new RootBeanDefinition(StringPrinter.class));
+
+BeanDefinition helloDefinition = new RootBeanDefinition(Hello.class);
+helloDefinition.getPropertyValues().addPropertyValue("name","Spring");
+helloDefinition.getPropertyValues()
+    .addPropertyValue("printer",new RuntimeBeanReference("printer"));
+
+context.registerBeanDefinition("hello",helloDefinition);
+
+Hello hello = context.getBean("hello", Hello.class);
+hello.print();
+
+assertThat(context.getBean("printer").toString(), is("Hello Spring"));
+
+context.registerBeanDefinition("consolePrinter", new RootBeanDefinition(ConsolePrinter.class));
+helloDefinition.getPropertyValues().addPropertyValue("printer", new RuntimeBeanReference("consolePrinter"));
+context.registerBeanDefinition("hello", helloDefinition);
+
+hello = context.getBean("hello", Hello.class);
+hello.print();;
+```
+
+책에서 `StringPrinter` 만 테스트하는데, 추가적으로 이미 만들어놧던 `ConsolePrinter`의 테스트가 진행했다. 모두 성공적으로 돌아가며 이를통해 POJO 클래스와 설정 메타정보(코드로 만든)를 가지고 IoC컨테이너가 런타임에 만든 어떻게 연결하는가를 확인했다.
