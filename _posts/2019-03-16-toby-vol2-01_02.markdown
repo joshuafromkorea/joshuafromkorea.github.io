@@ -1,0 +1,458 @@
+---
+layout: post
+title: "토비의 스프링 3.1 vol.2 1장 IoC 컨테이너와 DI-02"
+date: 2019-03-16
+categories:
+---
+
+vol.2 를 시작하면서 스터디원들이 다들 엄청난 분량의 첫 번째 챕터에 학을 떼었는데, 저번주에 초반부를 공부한 것을 제외하고, 주말 이틀을 꼬박 들였는데 1장의 절반정도 왔다. 길이도 길이이지만 스프링 프레임워크의 기본이 되는 IoC 컨테이너와 Bean 생성 및 의존성 주입에 대한 내용이어서, 활자를 읽고나서 이해하려고 노력하는 시간과 별도로 다른 분의 블로그등을 찾아보면서 정리하는 시간이 들었다.
+
+프로젝트가 2주밖에 남지 않은 시점이라 평일에는 거의 공부를 할 수 없는 환경이어서, 그룹스터디 진도를 따라가는 거 외에는 거의 다른공부를 하지 못하고 있다.
+
+---
+
+#### 1.1.2 IoC 컨테이너의 종류와 사용 방법
+
+실제로 `ApplicationContext` 오브젝트를 코드를 통해 만드는 경우는 없는데, 이는 간단한 설정을 통해 자동으로 생성하는 방법을 사용하기 때문이다. 스프링이 기본으로 제공하는 `ApplicationContext`구현체에는 어떤 것이 있는지 살펴보자.
+
+##### `StaticApplicationContext`
+
+- 코드를 통해 Bean 메타 정보를 등록
+- 스프링의 기능에 대한 Learning Test에서만 일부 사용
+- 스프링 웹관련 학습테스트 검증시에는 서브클래스인 `StaticWebApplicationContext`를 사용
+- **컨테이너 동작 방식 참고** 용도 임으로 실전에서사는 사용하지 않는다.
+
+##### `GenericApplicationContext`
+
+- 실전용의 기능을 모두 갖추고 있으며, 주요 기능을 DI를 통해 확장가능
+- XML 파일과 같은 외부 리소스에 있는 **설정 메타 정보**를 리더를 통해 읽어서 사용
+- `BeanDefinitionReader`를 구현한 오브젝트로 `BeanDefinition` 정보를 읽는다.
+  - `XmlBeanDefinitionReader`가 대표적인 구현체이다.
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans 		   http://www.springframework.org/schema/beans/spring-beans.xsd">
+
+    <bean id="hello" class="learningtest.spring.ioc.bean.Hello">
+        <property name="name" value="Spring"/>
+        <property name="printer" ref="printer"/>
+    </bean>
+
+<bean id="printer" class="learningtest.spring.ioc.bean.StringPrinter"/>
+</beans>
+```
+
+동일한 빈생성 작업을 위해 XML 파일을 하나 생성했다. 이를 이용하는 학습 테스트를 작성해보자.
+
+```java
+@Test
+public void genericApplicationContext(){
+    GenericApplicationContext context = new GenericApplicationContext();
+    XmlBeanDefinitionReader reader = new XmlBeanDefinitionReader(context);
+    reader.loadBeanDefinitions("forGenericApplicationContext.xml");
+
+    context.refresh();
+
+    Hello hello = context.getBean("hello", Hello.class);
+    hello.print();
+
+    assertThat(context.getBean("printer").toString(), is("Hello Spring"));
+
+}
+```
+
+maven 프로젝트는 기본적으로 `/src/main/resources/`이하에 xml파일을 넣어두면 자동으로 잘 찾아준다. 일반적으로 xml형식을 사용하지만, 프로퍼티 파일로 만들어도 무관하다. `PropertiesBeanDefinitionReader`를 통해서 읽어서, IoC컨테이너에게 제공하면 되기 때문이다.
+
+일단 매핑되는 `BeanDefinitionReader`를 구현한 구현체만 있으면 어떤형태의 메타정보도 읽어서 사용할 수 있다. DB테이블에 빈 설정정보를 저장하고 읽거나, 원격서버에서 읽어 올 수도 있다. 대표적으로는 **xml**, **어노테이션**, **자바클래스**의 세 가지 방식을 사용하지만 유연하게 확장가능하다.
+
+- 실전에서 **스프링컨테이너를 확장**한 독립형 애플리케이션을 만들지 않는 이상, **사용할 일이 드물**다.
+- 다만, JUnit 테스트내에서 사용되는 컨텍스트로 알게모르게 사용하게 된다.
+
+##### `GenericXmlApplicationContext`
+
+- `XmlBeanDefinitionReader`을 `private final` 필드로 갖고 있다.
+- XML파일을 사용하는 코드를 시험삼아 만들때 사용하면 된다.
+
+```java
+@Test
+public void xmlContextTest(){
+    GenericApplicationContext context = 
+        new GenericXmlApplicationContext("forGenericApplicationContext.xml");
+
+    Hello hello = context.getBean("hello", Hello.class);
+    hello.print();
+
+    assertThat(context.getBean("printer").toString(), is("Hello Spring"));
+
+}
+```
+
+`BeanDefinitionReader`를 생성하고, `refresh()`하는 과정이 생략될 수 있다.
+
+##### `WebApplicationContext`
+
+- 서블릿 기반 독립 웹어플리케이션(WAR)를 만들기 위한 컨텍스트
+- 이를 구현한 **`XmlWebApplicationContext**를 가장 많이 사용한다.
+- 어노테이션을 사용하면, **`AnnotactionConfigWebApplicationContext`**를 사용한다.
+
+###### 스프링 IoC 컨테이너의 기동 방식
+
+- IoC 컨테이너를 적용한 어플리케이션을 기동시키는 방법에는 반드시 아래의 과정이 필요하다
+  1. Bean 설정 메타정보로 IoC 컨테이너 생성
+  2. 이를 통해 Bean 오브젝트 생성 및 DI 작업 수행
+  3. **어디에선가 특정 Bean 오브젝트의 메소드를 호출**
+     - 예) `main()` 메소드
+- 기동 역할을 맞는 Bean을 사용하기 위해선, 추가적으로 IoC 컨테이너에서 해당 Bean을 가지고와야 한다.
+
+```java
+//어떤 ApplicationContext를 사용하든 반드시 등장했던 getBean()
+Hello hello = context.getBean("hello", Hello.class);
+```
+
+- 한번 `getBean()`메소드로 어플리케이션을 기동하면, DI로 인한 관계설정으로 인해 더이상은 필요없다.
+
+###### 웹 어플리케이션의 동작방식의 특수성
+
+- 독립 자바 프로그램은 어떤식으로든 JVM에게, `main()`메소드를 가진 클래스를 시작하라고 요청할 수 있다.
+- 웹 환경에서는 이 역할을 **서블릿 컨테이너**가, HTTP요청을 받아, 매핑된 서블릿을 실행한다.
+- 즉, 서블릿으로 들어오는 요청에 과 매핑된 `getBean()`을 수행하여 빈 오브젝트를 가져오는 것이다.
+
+아래 그림은, **토비의 스프링**에 나오는 웹어플리케이션의 기동방식에, 추가적으로 인터넷에서 찾아본 동작원리를 정리해본 것이다.
+
+<div class="mermaid">
+graph TD
+	CL[클라이언트]
+	SV[서버]
+	CL-.->|5.요청|SV
+	subgraph 서블릿 컨테이너
+		DS[DispatcherServlet]
+		CLL[ContextLoaderListner]
+	end
+	WX(web.xml)
+	SV-->|1.loading|WX
+	SV-->|2.생성|CLL
+	AC(root-context.xml)
+	CLL-->|3.loading|AC
+	subgraph 스프링 컨테이너
+		Controller
+		DAO
+		DTO
+		Service
+	end
+	AC-->|4.생성|Controller
+	AC-->|4.생성|DAO
+	AC-->|4.생성|DTO
+	AC-->|4.생성|Service
+	SV-.->|6.생성|DS
+	SVX(servlet-context.xml)
+	DS-.->|7.loading|SVX
+	DS-.->|8.동작|Controller
+</div>
+
+**실선**으로 표시된 1부터 4는 WAS를 기동할 때, 실행되는 부분이며, **점선**부분으로 된 5부터 8은 클라이언트 요청으로 인한 처리 순서를 나타낸 것이다.
+
+- 서블릿컨테이너는 `main()` 처럼 클라이언트 요청에 따라 적절한 동작을 하는 일을 한다 (5~8)
+- `DispatcherServlet`은 스프링이 제공하는 것으로 `web.xml`에 해당 정보를 등록하여 준비시킨다(1~4) 
+- 즉 서버를 기동하는 과정에서, 스프링 컨테이너가 생성되고 (1~4), 스프링 컨테이너안의 POJO들이, 클라이언트 요청에 따라 동작한다 (5~8)
+
+#### 1.1.3 IoC 컨테이너 계층구조
+
+한 개이상의 IoC 컨테이너를 만들 때 트리 모양의 계층 구조를 사용한다.
+
+##### 부모 컨텍스트를 이용한 계층구조 효과
+
+<div class="mermaid">
+graph TB
+	ROOT[루트 어플리케이션 컨텍스트]
+	A1[어플리케이션 컨텍스트 A1]
+	A2[어플리케이션 컨텍스트 A2]
+	B1[어플리케이션 컨텍스트 B1]
+	ROOT---A1
+	ROOT---A2
+	A1---B1
+</div>
+
+> 모든 어플리케이션 컨텍스트는 부모 어플리케이션 컨텍스트를 가질 수 있다.
+
+###### 계층 구조의 동작 원리
+
+1. 모든 컨텍스트는 각자 독립적으로 관리하는 Bean이 있다.
+2. DI를 위해 빈을 검색할 때 **부모 컨텍스트**까지 검색한다.
+3. 찾지 못할 경우 부모에게 검색을 요청한다. 
+4. 2-3이 반복 실행되면 결국 **루트 컨텍스트**까지 요청이 전달된다.
+5. 검색 요청은 **반드시** **부모에게만 일어난다**
+   1. 같은 레벨의 형제나, 자식 컨텍스트에서는 요청하지 않는다.
+
+###### 효과
+
+위의 로직은 바꿔서 말한다면, 같은 이름의 Bean이 있을때, 실제로 사용하는 것은 자신에게서 가까운 컨텍스트에서 발견된 Bean을 사용한다는 것이다. **즉, ** 계층 구조를 통해서, 기존 설정을 수정하지 않고 일부의 구성만 바꿀 경우 하위 컨텍스트 계층 구조에서 해당 빈을 변경 및 사용하면 된다.
+
+어플리케이션 계층구조의 사용은, 예상치 못한 에러를 야기할 수 있다. 위의 동작원리를 이해하지 못하고, 설정하면 기본적인 스프링 웹어플리케이션에서도 에러가 날 수 있다. 스프링 웹 어플리케이션은 기본적으로 두 개의 컨텍스트로 구성된 계층 구조이기 때문이다.
+
+##### 컨텍스트 계층구조 테스트
+
+컨텍스트 계층구조 학습 테스트를 위해 두개의 설정파일을 만든다.
+
+###### 부모 컨텍스트가 사용할 설정파일(`parentContext.xml`)
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd">
+    <bean id="printer" class="learningtest.spring.ioc.bean.StringPrinter"/>
+    <bean id="hello" class="learningtest.spring.ioc.bean.Hello">
+        <property name="name" value="Parent"/>
+        <property name="printer" ref="printer"/>
+    </bean>
+</beans>
+```
+
+###### 자식 컨텍스트가 사용할 설정파일(`childContext.xml`)
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd">
+    <bean id="hello" class="learningtest.spring.ioc.bean.Hello">
+        <property name="name" value="Child"/>
+        <property name="printer" ref="printer"/>
+    </bean>
+</beans>
+```
+
+`hello` bean의 `printer`프로퍼티가 참조할 `printer`빈이 자식 컨텍스트 설정파일에는 존재 하지 않는다. 이 둘을 연결하여 동작하는 테스트는 아래와 같다.
+
+###### 부모-자식 컨텍스트 Bean 생성 및 DI 테스트
+
+```java
+ //부모 컨텍스트 생성 xml 설정정보도 로드했다
+ApplicationContext parent = new GenericXmlApplicationContext("parentContext.xml");
+
+//자식 컨텍스트 생성, 생성자 파라미터로 ApplicationContext 타입을 넘기면 부모로 갖게된다
+GenericApplicationContext child = new GenericApplicationContext(parent);
+
+//자식 컨텍스트 설정정보 로드 및 초기화
+XmlBeanDefinitionReader reader = new XmlBeanDefinitionReader(child);
+reader.loadBeanDefinitions("childContext.xml");
+child.refresh();
+
+//자식 컨텍스트엔 printer가 없지만, 부모에서 찾아오기 때문에 null이 아니다.
+Printer printer = child.getBean("printer", Printer.class);
+assertThat(printer, is(notNullValue()));
+
+//getBean으로 자식에서 찾은 hello빈은 자식 컨텍스트의 Bean임을 확인한다.
+Hello hello = child.getBean("hello", Hello.class);
+hello.print();
+assertThat(printer.toString(), is("Hello Child"));
+```
+
+두 개의 컨텍스트를 만들 곳 부모 자식관계를 맺은뒤에, 자식 컨텍스트에서 부모에 있는 Bean을 정상적으로 찾아올 수 있고, 또한 자신이 가진 Bean을 우선적으로 반환하는 것을 확인 할 수 있다.
+
+#### 1.1.4 웹 어플리케이션의 IoC 컨테이너 구성
+
+> 자바 서버에는 하나 이상의 웹 모듈을 사용할 수 있다. 스프링을 사용한다면 보통 독립적으로 배치 가능한 웹 모듈<sup>WAR</sup>형태로 어플리케이션을 배포한다. 하나의 웹 어플리케이션은 여러 개의 서블릿을 가질 수 있다.
+
+스프링은 **프론트 컨트롤러 패턴**을 사용하는데, 몇 개의 대표 서블릿이 모든 요청을 다 받아서, 각 요청의 기능을 담당하는 핸들러를 호출하는 방식이다. 따라서 스프링 웹 어플리케이션에 사용되는 서블릿은 하나이거나 많아야 두셋 정도이다.
+
+일반적으로 스프링 웹어플리케이션은 두 개의 컨테이너(= `WebApplicationContext` 오브젝트)가 만들어 진다. 하나는 스프링 어플리케이션의 요청을 처리하는 **서블릿 레벨**에서 만들어지고, 다른 하나는 **웹 어플리케이션 레벨**에서 만들어진다.
+
+##### 웹 어플리케이션의 컨텍스트 계층구조
+
+앞에서 언급한 두 개의 컨테이너 중 후자인, 웹 어플리케이션 레벨에서 만들어지는 컨텍스트를 보통 **루트 컨텍스트**라고 부른다. 서블릿 레벨에서 등록되는 컨테이너들의 부모 컨테이너가 되고, 계층 구조내에서 최상단에 위치하기 때문이다.
+
+웹 어플리케이션에는 프론트 컨트롤러 역할을 하는 다수의 서블릿이 등록될 수 있으며, 각각 독립적으로 컨텍스트를 가진다. 이들중 공통되는 빈들은 웹어플리케이션 레벨, 즉 루트 컨텍스트에 등록하게 되면, 각 서블릿별로 중복생성되는 것을 방지할 수 있다.
+
+<div class="mermaid">
+graph LR
+	A[ ]-.->SA
+	B[ ]-.->SB
+	subgraph 웹 어플리케이션
+		SA(서블릿 A</br>어플리케이션 컨텍스트)
+		SB(서블릿 B</br>어플리케이션 컨텍스트)
+		WR(웹 어플리케이션</br>루트 어플리케이션 컨텍스트)
+	end
+	SA-->WR
+	SB-->WR
+	style A fill:#FFF,stroke:#FFF
+	style B fill:#FFF,stroke:#FFF
+</div>
+
+위의 그림처럼, 서블릿 A와 B는 독립적으로 어플리케이션 컨텍스트를 가지고 있다. 또한 이 둘은 루트 어플리케이션 컨텍스트를 부모 컨텍스트로 가진다. 위의 계층 구조가 스프링 어플리케이션 계층구조에서 가장 대표적인 경우다.
+
+실제로 이렇게 두개의 서블릿을 나눠서 처리하는 경우는 흔치 않다. 기존의 Legacy 설정을 유지하면서, 새로운 기능이나 별도의 기술을 추가하는 경우에나 사용될 것이다. 따라서 일반적으로는 한개의 서블릿 컨텍스트를 갖는 아래의 구조가 대부분이다.
+
+<div class="mermaid">
+graph LR
+	A[ ]-.->SA
+	subgraph 웹 어플리케이션
+		SA(서블릿 A</br>어플리케이션 컨텍스트)
+		WR(웹 어플리케이션</br>루트 어플리케이션 컨텍스트)
+	end
+	SA-->WR
+	style A fill:#FFF,stroke:#FFF
+</div>
+
+앞서서 부모 컨텍스트는 자식컨텍스트에서 사용할 공통적인 부분들을 공유하기 위해 존재한다고 했다. 하지만 위의 구조는 하나의 자식을 가진 구조이다. 이렇게 만드는 이유는 계층구조를 통해, 웹 어플리케이션을 두개의 부분으로 구분하기 위해서이다.
+
+- 웹 기술에 의존적인 부분 (프레젠테이션 계층-스프링외의 기술 사용가능)
+- 스프링 기술만 사용하는 부분(데이터 엑세스 계층이나 서비스 계층)
+
+예를 들어, AJAX프레임워크나, JSP나 서블릿 기반의 어플리케이션에서, 스프링이 생성한 서비스 계층 Bean을 사용하는 경우에 계층 구조를 분리한 위의 구조라면 대응할 수 있다. `WebApplicationContextUtils`가 제공하는 유틸리티 메소드인 `getWebApplicationContext()`를 통해서 스프링 밖의 어디서라도 웹 어플리케이션의 루트 컨텍스트를 가지고 올 수 있다.
+
+따라서 아래와 같은 다양한 구성도 가능하다.
+
+<div class="mermaid">
+graph LR
+	A[ ]-.->SA
+	B[ ]-.->SB
+	C[ ]-.->SC
+	D[ ]-.->SD
+	subgraph 웹 어플리케이션
+		SA(기타 웹 프레임워크)
+		SB(WebService/AJAX Engine)
+		SC(JSP/Servlet)
+		SD(스프링 서블릿)
+		WR(웹 어플리케이션</br>루트 어플리케이션 컨텍스트)
+	end
+	SA-->WR
+	SB-->WR
+	SC-->WR
+	SD-->WR
+	style A fill:#FFF,stroke:#FFF
+	style B fill:#FFF,stroke:#FFF
+	style C fill:#FFF,stroke:#FFF
+	style D fill:#FFF,stroke:#FFF
+</div>
+
+이러한 프레젠테이션과 이외 계층을 분리하는 계층 구조는, 웹 기술의 확장과 변경에 용의하지만, 앞서 언급한 계층 구조상의 주의사항을 기억하고 설계해야 한다.
+
+- 서블릿 계층에서 루트 컨텍스트를 참조할 수 있지만 반대는 불가능하다.
+- 서블릿에서 동일한 이름의 Bean이 있으면, 루트의 Bean은 무시된다.
+- AOP설정은 컨텍스트 독립적이다.
+
+##### 웹 어플리케이션의 컨텍스트 구성방법
+
+웹 어플리케이션의 컨텍스트 구성법으로 아래의 세 가지를 고려해 볼 수 있다.
+
+###### 서블릿 컨텍스트와 루트 어플리케이션 컨텍스트 계층 구조
+
+- 가장 많이 사용된다.
+- 바로위의 그림과 같이 다양한 웹 프레임워크와 HTTP 요청에 대응 된다.
+
+###### 루트 어플리케이션 컨텍스트 단일구조
+
+- 별도의 프레젠테이션 계층을 두는 구조이다.
+- 스프링의 프레젠테이션 계층인 스프링 서블릿을 사용하지 않기 때문에 루트 컨텍스트만 등록해주면 된다.
+
+###### 서블릿 컨텍스트 단일구조
+
+- 서블릿안의 어플리케이션 컨텍스트가 스스로 루트가 된다.
+- 다른 프레젠테이션 계층을 전혀 배제한 설계이다.
+- 계층구조 사용하면서 발생하는 혼란을 배제할 수 있다.
+
+##### 루트 어플리케이션 컨텍스트 등록
+
+웹 어플리케이션 레벨의 루트 어플리케이션 컨텍스트 등록하는 방법은 서블릿의 Event Listner를 사용하는 것이다. 스프링의 웹 어플리케이션 시작과 종료시 발생하는 이벤트를 처리하는 `ServletContextListner`를 사용한다. 이를 구현한 리스너를 통해 웹 어플리케이션 **전반에 적용하는** DB연결이나 로깅 같은 서비스를 만들 수도 있다.
+
+스프링은 컨텍스트를 만드는데 사용할 수 있도록 `ContextLoaderListner`라는 구현체를 제공한다. 웹 어플리케이션의 web.xml 파일아네 리스너 선언을 넣어주면된다.
+
+###### `ContextLoaderListner`등록하기
+
+```xml
+<listner>
+    	<listner-class>org.springframework.web.context.ContextLoaderListner
+    	</listner-class>
+</listner>
+```
+
+위의 등록을 통해 적용되는 디포트 설정 값은 아래와 같다.
+
+- 어플리케이션 컨텍스트 클래스 : `XmlWebApplicationContext`
+- XML 설정파일 위치: `/WEB-INF/applicationContext.xml`
+
+물론 이러한 설정은 `<context-param>`이라는 항목을 사용해서 별도의 지정한 내용이 적용되게 변경할 수 있다.
+
+###### 설정파일 위치 바꾸기 (`contextConfiLocation`)
+
+```xml
+<!--공백이나 줄변경으로 분리하면 여러 xml을 사용할 수 있다.-->
+<context-param>
+    <param-name>contextConfigLocation</param-name>
+    <param-value>
+    	/WEB-INF/daoContex.xml
+        /WEB-INF/applicationContext.xml
+    </param-value>
+</context-param>
+```
+
+`<param-value>`에 들어가는 경로는 `classpath:`라는 접두어로 클래스 패스로 접근할수도 있고, 아래와 같이 한번에 여러개의 폴더를 지정할 수도 있다.
+
+```xml
+/WEB-INF/*Context.xml <!-- WEB-INF 디렉토리 밑의 Context.xml로 끝나는 모든 파일-->
+/WEB-INF/**/*Context.xml <!--WEB-INF 의 모든 서브 디렉토리에서 Context.xml로 끝나는 모든 파일-->
+```
+
+###### 컨텍스트 클래스 변경(`contextClass`)
+
+```xml
+<context-param>
+    <param-name>contextClass</param-name>
+    <param-value>
+    	org.springframework.web.context.support.AnnotationConfigWebApplicationContext
+    </param-value>
+</context-param>
+```
+
+`ContextLoaderListner`의 디폴트 컨텍스트 클래스는 `XmlWebApplicationContext`이므로, 어노테이션을 통한 설정을 할경우 반드시 위와같이 변경해주어야 한다.
+
+##### 서블릿 어플리케이션 컨텍스트 등록
+
+스프링의 프레젠테이션 계층의 프론트 컨트롤러 서블릿은 `DispatcherServlet`이다. web.xml에 등록해서 사용할 수 있으며, 이름을 다르게 지정하면 하나의 웹어플리케이션에 여러개를 등록할 수 있다. 각 서블릿은 초기화 될 때 자신만의 컨텍스트를 만듥도 초기화 한다. 또한 루트 어플리케이션 컨텍스트를 찾아서 이를 자신의 부모로 사용한다.
+
+###### 서블릿 등록
+
+```xml
+<servlet>
+    <servlet-name>spring</servlet-name>
+    <servlet-class>org.springframework.web.servlet.DispatcherServlet</servlet-class>
+    <load-on-startup>1</load-on-startup>
+</servlet>
+```
+
+- **`<servlet-name>`**: 이 항목에 지정한 이름이, 서블릿 단위로 만들어지는 컨텍스트를 구분하는 키가 된다. 이 항목에 `-servlet`을 붙여서 네임스페이스를 만드는데, 해당 네임스페이스가 곧 디폴트 XML 설정파일 위치를 아래와 같은 규칙으로 지정한다.
+  - `/WEB-INF/` + 네임스페이스 +`.xml`
+  - 즉 위의 경우엔 `WEB-INF/spring-servlet.xml`이 된다.
+- **`<load-on-startup>`**: 서블릿 컨테이너가 서블릿을 언제 만들고 초기화할지 결정하는 변수이다.
+  - 음수이거나 생략하면, 서블릿 컨테이너가 임의로 정한 시점에 만들어지고 초기화된다.
+  - 0 이상의 값을 넣으면 **웹어플리케이션 시작되는 시점**에 로딩하고 초기화된다.
+    - 숫자의 오름차순에 따라서 순서대로 진행된다.
+  - 일반적으로 1을 넣는데, 서블릿 컨텍스트 초기화를 웹어플리케이션 시작 시점에해야 문제를 파악하고 대응할 수 있기 때문이다.
+
+서비스계층과 데이터 엑세스 계층을 모두 담당하는 루트 컨텍스트와 달리, 서블릿의 경우엔 파일을 분리하거나 특정한 위치를 지정할만한 이유가 없기 때문에, 위에서 언급한 디폴트 설정파일 이름을 따르는 것이 간편하다.
+
+다만 앞서서 언급한 **서블릿컨텍스트 단일구조**에서는 여러개로 분리된 설정파일을 사용할 수도 있다. 아래의 예는 웹 계층을 위한 `spring-servlet.xml`과 이외 계층을 위한 `applicationContext.xml`을 동시에 사용하는 단일 서블릿 컨텍스트 구성의 예의다.
+
+###### 단일 서블릿 컨텍스트 구성
+
+```xml
+<servlet>
+    <servlet-name>spring</servlet-name>
+    <servlet-class>org.springframework.web.servlet.DispatcherServlet</servlet-class>
+    <init-param>
+    	<param-name>contextConfigLocation</param-name>
+        <param-value>
+    		/WEB-INF/spring-servlet.xml
+        	/WEB-INF/applicationContext.xml
+    	</param-value>
+    </init-param>
+    <load-on-startup>1</load-on-startup>
+</servlet>
+```
+
+`<context-param>`대신에 `<init-param>`을 사용한다는 점만 빼면 동일하다.
+
+지금까지 살펴본 웹어플리케이션의 IoC 컨테이너, 즉 어플리케이션 컨텍스트를 구성하는 다양한 접근 방법을 알아봤다. 가장 대표적인 부모/자식 계층 구조를 적용하고 디폴트 설정을 적용하는 것으로 시작해보는 것이 좋다.

@@ -3,6 +3,7 @@ layout: post
 title: "토비의 스프링 3.1 vol.2 1장 IoC 컨테이너와 DI-01"
 date: 2019-03-10
 categories:
+
 ---
 
 # 토비의 스프링 3.1 vol.2
@@ -265,4 +266,4 @@ hello = context.getBean("hello", Hello.class);
 hello.print();;
 ```
 
-책에서 `StringPrinter` 만 테스트하는데, 추가적으로 이미 만들어놧던 `ConsolePrinter`의 테스트가 진행했다. 모두 성공적으로 돌아가며 이를통해 POJO 클래스와 설정 메타정보(코드로 만든)를 가지고 IoC컨테이너가 런타임에 만든 어떻게 연결하는가를 확인했다.
+책에서 `StringPrinter` 만 테스트하는데, 추가적으로 이미 만들어놧던 `ConsolePrinter`의 테스트까지 진행했다. 모두 성공적으로 돌아가며 이를통해 POJO 클래스와 설정 메타정보(코드로 만든)를 가지고 IoC컨테이너가 런타임에 만든 어떻게 연결하는가를 확인했다.

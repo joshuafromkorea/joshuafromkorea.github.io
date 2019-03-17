@@ -1,0 +1,954 @@
+---
+layout: post
+title: "토비의 스프링 3.1 vol.2 1장 IoC 컨테이너와 DI-02"
+date: 2019-03-17
+categories:
+---
+
+바로 전 sub chapter의 어플리케이션 컨텍스트가 스프링으로 만든 어플리케이션의 구조에 대한 내용이었다면, 실제로 스프링이 IoC컨테이너로서 역할할때 개발자가 사용하는 방법과, 또한 Bean 을 생성하고 의존성을 설정하는 방법에 대해서 방대하게 살펴본다. 
+
+어제 오늘 공부한 내용을 포함해서 vol.2의 1장에 대한 부분은 간간히 다시한번 복습하는 것이 좋을 것 같다.
+
+---
+
+### 1.2 IoC/DI를 위한 빈 설정 메타정보 작성
+
+IoC 컨테이너가 오브젝트를 생성하기전에, 어떤 오브젝트를 생성해야 할지는 여러번 언급한대로 어떠한 형태이든지 간에 `BeanDefinition`타입으로 변환되는 정보에 정의되어 있다. 결과적으로 해당 정보를 IoC컨테이너가 인식하기 위해서는 오브젝트 타입으로 변환되어야 하고 이러한 **닫힌 부분 때문에**, 결과적으로는 어떠한 형태로 설정정보를 활용할 수 있는 아래와 같은 **열린**구조의 설계가 가능한 것이다.
+
+<div class="mermaid">
+graph LR
+	XML[xml 문서]
+	AN[Annotation]
+	JAVA[자바코드]
+	BD[BeanDefinition]
+	IOC[IoC 컨테이너]
+	subgraph 
+		XRD[BeanDefinitionReader</br>구현체들]
+	end
+	XML-.->XRD
+	AN-.->XRD
+	JAVA-.->XRD
+	XRD-->|생성|BD
+	BD-->|loading|IOC
+	style XRD fill:#ffffde ,stroke:#FFF
+</div>
+
+#### 1.2.1 Bean 설정 메타정보
+
+그럼 IoC 컨테이너가 활용하는 `BeanDefinition`에는 어떠한 정보들이 있으며, 디폴드 값이 무엇인지 확인해보자
+
+##### Bean 설정 메타정보 항목
+
+| 이름                      | 내용                                                      | default     |
+| ------------------------- | --------------------------------------------------------- | ----------- |
+| beanClassName             | Bean 오브젝트의 클래스 이름                               | 없음 (필수) |
+| parentName                | Bean 메타 정보를 상속받을 부모 `BeanDefinition`의 이름    | 없음        |
+| factoryBeanName           | 팩토리 Bean을 사용할 경우, 팩토리 Bean 이름               | 없음        |
+| factoryMethodName         | 다른 Bean의 메소드를 통해 생성할 경우 메소드 이름         | 없음        |
+| scope                     | Bean 오브젝트의 생명주기 지정(싱글톤 or 비싱글톤)         | 싱글톤      |
+| lazylnit                  | Bean 오브젝트 지연 생성관련 값 true이면 최대한 미룸       | false       |
+| dependsOn                 | 우선 생성 Bean 지정 값, 순서가 보장되어야 하는 경우 사용  | 없음        |
+| autowireCandidate         | 명시 없이 자동 DI후보를 결정하는 대상으로 포함 여부       | true        |
+| primary                   | 자동 와이어링 대상들중, 최종 선택 지정, 없을 시 예외 발생 | false       |
+| abstract                  | 메타정보 상속에만 사용할 추상Bean으로 생성하도록 지정     | false       |
+| autowireMode              | 오토와이어링 전략: 이름, 타입 생성자, 자동인식 등         | 없음        |
+| dependencyCheck           | 프로퍼티 값, 레퍼런스에 대한 Validation 종류              | 하지않음    |
+| initMethod                | Bean 생성 및 DI작업 후 실행할 초기화 메소드               | 없음        |
+| destroyMethod             | Bean을 제거하기 전에 호출할 메소드                        | 없음        |
+| propertyValues            | 프로퍼티 이름과 설정 값, 수정자를 통한 DI작업시 사용      | 없음        |
+| constructorArgumentValues | 생성자 이름과 설정 값, 생성자를 통한 DI 작업시 사용       | 없음        |
+| annotationMetadata        | Bean 클래스에 담긴 어노테이션과 애트리뷰트 `@`활용시 사용 | 없음        |
+
+이 외에도 다른 정보들이 있다, 여기서 가장 중요한 것은 **beanClassName**이다. 컨테이너에 빈의 정보가 등록될 때 필요한 최소의 정보이다.
+
+#### 1.2.2 Bean 등록 방법
+
+어떠한 형태의 메타정보라도, `BeanDefintion`으로 구현 오브젝트로 생성해서 컨테이너에게 건네주면 Bean 설정정보로 사용되어 Bean을 등록할 수 있지만, 스프링에서 자주 사용되는 등록 방법은 크게 5 가지 이다.
+
+##### XML: `<bean>` 태그
+
+- 태그를 사용하면, 빈 메타정보의 거의 모든 항목을 지정가능하여 세밀한 제어 가능
+
+- `<beans>`라는 루트 엘리먼트 안에 포함됨
+
+- 생략 가능한 `id` 어트리뷰트와, 필수 인 `class` 어트리뷰트가 필요하다.
+
+  ```xml
+  <bean id="hello" class="learningtest.spring.ioc.bean.Hello">
+  </bean>
+  ```
+
+- `<property>` 내부에 정의하여 Inner Bean으로 사용할 수 있으며, `id`나 이름은 지정하지 않는다.
+
+  - 두 Bean 사이의 강한 결합을 가질 때만 사용한다.
+
+  ```xml
+  <bean id="hello" class="learningtest.spring.ioc.bean.Hello">
+      <property name="printer" ref="printer">
+          <bean class="learningtest.spring.ioc.bean.StringPrinter"/>
+      </property>
+  </bean>
+  ```
+
+##### XML: 네임스페이스와 전용 태그
+
+- 특정한 역할을 하는 Bean을 구별하기 위해서, xml 네임스페이스와 태그를 가진 설정을 활용
+- AOP설정시 사용하는 `<aop:pointcut>` 등의 한 예
+- 별도의 정의된 스키마가 존재하기 때문에, 해당 Bean에 대한 어트리뷰트, 타입, 등의 검증 가능
+  - IDE가 제공하는 자동완성 기능까지 활용하면 편리하다.
+- 한번의 명시로 여러개의 Bean을 동시 생성도 가능: `<context:annotation-config>`
+- 특정 패턴으로 반복적으로 등장하는 Bean선언을 커스텀 네임스페이스로 생성 가능
+
+##### 자동인식을 이용한 Bean 등록: 스테레오타입 어노테이션과 Bean Scanner
+
+- 한 곳에 명시적으로 선언하지 않고, Bean으로 사용될 클래스에 어노테이션을 주는 ㄴ방법
+
+- Bean 후보군을 찾는 작업을 하는 Bean Scanner 가 필요하다
+
+  - 지정된 클래스 패스 아래의 모든 클래스를 대상으로 찾는다.
+  - Default 필터는 `@Component` 혹은 이를 메타 어노테이션으로 가진 `@`을 찾는다.
+
+  ```java
+  @Component
+  public class AnnotatedHello{
+      
+  }
+  ```
+
+- 클래스 이름의 첫 글자를 소문자로 바꾼 것을 Bean `id`로 자동으로 사용한다.
+
+  - 예를 들어 위의 `AnnotatedHello` 클래스는 `"annotatedHello"`로 찾을 수 있다.
+
+  ```java
+  @Test
+  public void simpleBeanScanningTest(){
+      ApplicationContext context = 
+          new AnnotationConfigApplicationContext("learningtest.spring.ioc.bean");
+  
+      AnnotatedHello hello = 
+          context.getBean("annotatedHello", AnnotatedHello.class);
+      assertThat(hello, is(notNullValue()));
+  }
+  ```
+
+- Bean의 이름을 지정할 때는 디폴트 애트리뷰트에 지정해줄 수 있다.
+
+  ```java
+  @Component("specifiedHello")
+  public class AnnotatedHello{
+  ```
+
+- XML등 한곳에  설정정보를 일일히 명시하는 것에 비해서 개발 속도가 향상된다.
+
+  - 하지만 전체 Bean 정보를 파악하고 통제하는 것은 불가하며, 클래스당 한 개 이상의 Bean 생성 불가하다.
+
+- 개발에서는 Bean Scanner를 사용하지만, 인수테스트나 운영시점에서는 XML을 이용하는 것도 고려가능하다.
+
+- 자동 인식을 통한 Bean 등록에는 두 가지 방법이 있다.
+
+  - **XML을 이용한 스캐너 등록**: xml설정파일에 `<context:componet-scan>` 만 넣어주면 된다.
+
+  - **Bean Scanner 내장 컨텍스트 사용**: `AnnotationConfigApplicationContext`의 예
+
+    - 웹 어플리케이션에서는 `web.xml` 파일을 수정해주면 된다. `<context-param>` 사용
+
+      ```xml
+      <context-param>
+      	<param-name>contextClass</param-name>
+          <param-value>
+          org.springframework.context.annotation.AnnotationConfigApplicationContext
+          </param-value>
+      </context-param>
+      
+      <context-param>
+          <param-name>contextConfigurationLocation</param-name>
+          <param-value>learningtest.spring.ioc.bean</param-value>
+          <!-- 다수의 위치지정도 가능하다 -->
+      </context-param>
+      ```
+
+    - 서블릿이라면 `<init-param>`을 사용한다.
+
+- 이외에도 다른 스트레오타입 어노테이션을 사용하면 Bean으로 등록될 수 있다.
+
+  - 일반적으로 특정 계층의 빈이라는 의미로 아래와 같이 사용한다.
+
+| 스테레오 타입 어노테이션 | 적용 대상                                                    |
+| ------------------------ | ------------------------------------------------------------ |
+| `@Repository`            | DAO 또는 리포지토리 클래스에 사용된다. `DataAccessException` 자동변환 같이 AOP의 적용대상을 선정하기 위해서도 사용된다. |
+| `@Service`               | 서비스 계층의 클래스를 Bean으로 등록할 때 사용한다.          |
+| `@Controller`            | 프레젠테이션 계층의 MVC 컨트롤러에 사용한다. 스프링 웹 서블릿에 의해 웹 요청을 처리하는 컨트롤러 Bean으로 자동 선정된다. |
+
+- 커스텀 스테레오타입 어노테이션을 생성하려면 `@Component`를 메타어노테이션으로 사용하면 된다.
+
+##### 자바 코드에 의한 Bean 등록: `@Configuration` 클래스의 `@Bean` 메소드
+
+- `@Configuration`이 붙은 클래스내의 `@Bean`메소드가 return하는 오브젝트가 Bean이 된다.
+
+  - 해당 클래스가 Bean 메타정보와 Bean 오브젝트 팩토리의 역할을 동시에 수행한다.
+
+  ```java
+  @Configuration
+  public class AnnotatedHelloConfig {
+      @Bean
+      public AnnotatedHello annotatedHello(){
+          return new AnnotatedHello();
+      }
+  }
+  ```
+
+- 어노테이션 설정을 지원하는 컨테이너는, 자바코드로 만든 빈설정 메타정보를 사용할 수 있다.
+
+  ```java
+  @Test
+  public void javaCodeConfigurationTest(){
+      ApplicationContext context = new AnnotationConfigApplicationContext(AnnotatedHelloConfig.class);
+  
+      AnnotatedHello hello = context.getBean("annotatedHello", AnnotatedHello.class);
+      assertThat(hello, is(notNullValue()));
+  }
+  ```
+
+  - Bean Scanner 를 사용했던 코드와 동일하지만, 자바코드 설정을 넘기는 것으로 간단하게 재활용했다.
+
+- `@Configuration` 이 붙은 클래스 자체도 Bean으로 등롟되어서 사용될 수 있다.
+
+  - 그리고, 해당 Bean이 메소드를 직접 호출해 생성하는 오브젝트는 스프링의 싱글톤이 적용된다.
+
+  ```java
+  @Test
+  public void javaCodeConfigurationTest(){
+      ApplicationContext context = new AnnotationConfigApplicationContext(AnnotatedHelloConfig.class);
+  
+      AnnotatedHello hello = context.getBean("annotatedHello", AnnotatedHello.class);
+      assertThat(hello, is(notNullValue()));
+  
+      AnnotatedHelloConfig annotatedHelloConfig = 
+          context.getBean("annotatedHelloConfig", AnnotatedHelloConfig.class);
+      assertThat(annotatedHelloConfig.annotatedHello(), is(hello)); //new로 생성해도 같다!
+  }
+  ```
+
+  - 즉, 별다른 설정을 해놓지 않는다면, `@Bean`이 선언된 메소드가 리턴하는 오브젝트는 **싱글톤이다!**
+  - 아래와 같이 일반 자바 코드라면, 필요없는 새 오브젝트가 생성되는 문제가 해결된다.
+
+  ```java
+  @Configuration
+  public class HelloConfig {
+      @Bean
+      public Hello hello(){
+          Hello hello = new Hello();
+          hello.setName("Spring");
+          hello.setPrinter(print());
+          return hello;
+      }
+  
+      @Bean Hello hello2(){
+          Hello hello = new Hello();
+          hello.setName("Spring2");
+          hello.setPrinter(print()); //여러번 호출해도 동일 오브젝트
+          return hello;
+      }
+  
+      @Bean
+      public Printer print() {
+          return new StringPrinter(); //new 는 의미가 없다.
+      }
+  }
+  ```
+
+- 결과적으로, 스프링 메타정보의 특징과, 자바코드를 사용하는 장점을 모두 사용할 수 있는 방법이다.
+
+  - 다만 스프링 밖에서 해당 코드가 사용되면, 설계와 달리 동작할 수 있음을 기억하자
+
+- 특히, 자동인식으로 대체할 수 없는, **기술 서비스 Bean**이나 **컨테이너 설정용 Bean**에 활용 가능하다.
+
+  - 스프링이 제공하는 `SimpleDriverDataSource`를 Bean으로 만드는 방법의 예
+    - 자동인식을 사용하려면 해당 클래스를 상속받는 별도의 클래스가 필요하다.
+  - 자바 코드에 의한 Bean 등록은 xml을 손쉽게 대체 가능하다.
+
+  ```java
+  @Configuration
+  public class ServiceConfig {
+      @Bean
+      public DataSource datasource(){
+          SimpleDriverDataSource dataSource = new SimpleDriverDataSource();
+          dataSource.setDriverClass(org.h2.Driver.class);
+          
+          ...
+              
+          return dataSource;
+      }
+  }
+  ```
+
+- **자바 코드**가 XML과 같은 외부설정을 이용하는 것에 비해 **유용한 점**
+
+  - 컴파일러나 IDE를 통한 **타입 검증이 가능하다**.
+    - xml은 네임스페이스나, IDE가 제공하는 별도의 에디터를 사용해야 한다.
+  - 자동완성과 같은 IDE 지원 기능을 최대한 이용가능하다.
+  - **이해하기 쉽다**: 기존의 자바 개발자가 별도의 xml에 대한 공부없이 시작할 수 있다.
+  - 복잡한 Bean 초기 설정 작업을 자바코드로 할 수 있다.
+
+##### 자바 코드에 의한 빈 등록: 일반 빈 클래스의 `@Bean` 메소드
+
+- `@Configuration`이 붙지 않은 Bean 오브젝트의 메소드에 `@Bean` 어노테이션을 줄 수 있다.
+
+- 둘의 차이점은 `@Cofiguration`이 붙지 않은 클래스의 `@Bean`메소드는 **싱글톤 빈을 생성하지 않는다는 것**
+
+  ```java
+  //@Configuration 만 없을 뿐 클래스 소스는 동일하다.
+  public class HelloService {
+      @Bean
+      public Hello hello(){
+          Hello hello = new Hello();
+          hello.setName("Spring");
+          hello.setPrinter(print());
+          return hello;
+      }
+  
+      @Bean Hello hello2(){
+          Hello hello = new Hello();
+          hello.setName("Spring2");
+          hello.setPrinter(print()); //호출 할 때마다, 다른 printer
+          return hello;
+      }
+  
+      @Bean
+      public Printer print() {
+          return new StringPrinter(); 
+      }
+  }
+  ```
+
+  - 따라서 `@Bean` 어노테이션만 단독으로 사용된 클래스의 메소드는 반드시 `private`으로 만들어야 한다.
+  - 클래스 내부에서도 DI를 통해서 참조하고, 직접 메소드를 호출 하지 않는다.
+
+- 두 Bean 사이의 관계가 강한 결합일 경우, 클래스 내부의 정보에 접근해야 할 경우에만 사용해야 한다.
+
+##### 빈 등록 메타정보 구성 전략
+
+위에서 살펴 본 5가지 전략을 활용해서 사용할만한 구성 전략 세 가지를 소개한다.
+
+###### XML 단독 사용
+
+- 자바코드와 설정정보를 분리해서, 순수한 POJO 코드를 유지하게 한다.
+- 기존의 코드를 손대지 않고, 재사용할때도 유리하다.
+- 커스텀 태그를 사용하면, 설정의 양을 대폭 줄일 수도 있다.
+
+###### XML과 Bean 스캐닝의 혼용
+
+- XML을 사용하는 어플리케이션 컨텍스트에, `<context: component-scan>` 태그를 이용해 등록
+
+- 어플리케이션의 계층에 따라서 Bean 등록 방법을 다르게 하는 것이다.
+
+  - 핵심 로직: 싱글톤으로 사용되므로 Bean 자동 스캐닝 사용
+  - 서비스, 컨테이너 설정: XML을 사용
+
+- 개발 초기에 설정할 정보들은 XML로 정의하고, 추가되는 기능들에 관련된 부분은 스캐닝을 사용한다.
+
+- Bean 스캐닝은 **패키지를 지정하는 것**이기 때문에, 패키지 지정에 세심한 주의가 필요하다.
+
+  - 두 개의 컨텍스트 사용하는 웹 어플리케이션 구조에서 두개의 Bean이 생성되는 문제
+
+  <div class="mermaid">
+  graph TB
+  	USC[UserService 클래스]
+  	subgraph 루트 컨텍스트
+  		RC[tx</br>AOP]
+  		USBB(userService Bean)
+      end
+  	subgraph 서블릿 컨텍스트
+  		USBA(userService Bean)
+  		SC[ ]
+  	end  
+      USC-.->|중복 Bean 스캐닝|USBA
+      USC-.->|중복 Bean 스캐닝|USBB
+      style RC fill:#ffffde ,stroke:#FFF
+      style SC fill:#ffffde ,stroke:#FFF
+      SC-->|부모|RC
+  </div>
+
+  - 요청에 대해서 서블릿 컨텍스트는, 자신에게 등록된 빈을 사용하기 때문에, tx, AOP 적용이 되지 않는다.
+
+##### XML없이 Bean 스캐닝 단독 사용
+
+- **자바 코드에 의한 빈등록이 반드시 필요**: 컨테이너 설정과 기반 서비스를 위한 설정
+  - 어플리케이션 Bean: 스테레오 타입 어노테이션 사용하여 스캐닝 (`@Component`)
+  - 컨테이너 설정정보등: `@Configuration` 자바코드를 통한 설정 메타정보
+    - Bean scanning 대상으로 포함시켜야 함
+- 자바 코드를 통한 컴파일 타임 타입 안정성 보장됨
+
+#### 1.2.3 Bean 의존관계 설정 방법
+
+##### XML: `<property>`, `<contructor-arg>`
+
+###### `<property>` 수정자 주입
+
+- Java Bean 규약을 따르는 수정자가 존재해야 한다
+
+- `ref` 어트리뷰트: Bean 이름을 이용해 주입할 Bean을 찾아 주입
+
+- `value` 어트리뷰트: 단순 값이나 Bean이 아닌 오브젝트
+
+  - 스프링이 자동을 알아서 타입을 맞추어 변환 해준다.
+
+  ```xml
+  <property name="name" value="Spring"/> <!-- 문자열이 그대로 전달-->
+  <property name="age" value="30"/> <!-- int형으로 변환-->
+  <property name="class" value="java.lang.String"/> <!-- java.lang.String 오브젝트 생성-->
+  ```
+
+- 타입정보에 대한 검증은 이뤄지지 않는다.
+
+###### `<constructor-arg>`: 생성자 주입
+
+- 생성자를 사용하기 때문에, 한번에 여러개의 오브젝트 주입 가능
+- `index` 어트리뷰트: 각 파라미터의 순서를 지정한다
+
+```xml
+<constructor-arg index="0" value="Spring"/>
+<constructor-arg index="1" ref="printer"/>
+```
+
+- 파라미터의 타입이 중복되지 않는다는 전제 하에, 타입으로 지정해서 구분할수도 있다.
+
+```xml
+<constructor-arg type="java.lang.Spring" value="Spring"/>
+<constructor-arg type="learningtest.spring.ioc.bean.Printer" ref="printer"/>
+```
+
+##### XML: 자동와이어링
+
+- **장점**: xml 설정파일의 양을 대폭 줄여준다.
+- **단점**: xml만을 통한 DI관계 파악이 불가능해 진다, 오타로 인한 위험성이 있다.
+
+###### `byName`: Bean 이름 자동 와이어링
+
+- 일반적으로 Bean의 이름은 클래스나 인터페이스 이름을 따르는 명명규칙을 활용한 방식
+- `<bean>`에 `autowire="byName"` 어트리뷰트를 적용하면, `<property>`생략이 가능하다.
+
+```xml
+<bean id="hello" class="learningtest.spring.ioc.bean.Hello" autowire="byName">
+    <property name="name" value="Spring"/>
+    <!-- 클래스나 인터페이스 이름을 사용해 자동으로, 같음 이름의 빈을 와이어 해준다-->
+</bean>
+
+<bean id="printer" class="learningtest.spring.ioc.bean.StringPrinter"/>
+```
+
+- `<beans>`에 자동와이어링 어트리뷰트를 주면, 이하의 전체 Bean들이 자동와이어링 방식으로 동작한다.
+- **`byName`**을 사용할 경우엔 Bean의 아이디와 프로퍼티 **명명 규칙을 잘 정해야 한다.**
+
+###### `byType`: 타입에 의한 자동와이어링
+
+- 여러 개발자로 인해 명명규칙을 통일하기 힘들때 사용 가능하다.
+- `<bean>`에 `autowire="byType"` 어트리뷰트를 적용한다.
+
+```xml
+<bean id="hello" class="learningtest.spring.ioc.bean.Hello" autowire="byType">
+    <property name="name" value="Spring"/>
+    <!-- 수정자 메소드의 파라미터 타입과 동일한 것을 자동으로 찾는다-->
+</bean>
+
+<bean id="mainPrinter" class="learningtest.spring.ioc.bean.StringPrinter"/>
+```
+
+- 같은 타입의 Bean이 존재하면 적용할 수 없다.
+- 또한 Bean의 갯수가 늘어나면 늘어날 수록, 타입비교에 들어가는 시간이 늘어난다.
+  - 생성자 파라미터를 이용하는 와이어링으로 타협가능 `autowire="constructor"`
+
+##### XML: 네임스페이스와 전용 태그
+
+- **전용태그로 생성 된 Bean을 주입**: 전용태그에 `id` 어트리뷰트 사용
+- **전용태그 Bean 에 주입** 
+  - 전용 태그 스키마에 정의된 어떤 어트리뷰트를 사용할지 알고 있어야 함
+  - 관례적으로 `-ref`로 끝나는 어트리뷰트를 사용한다.
+- 전용태그는 컨테이너 참조 설정정보로 사용되기에, **자동와이어링을 하더라도, `id`만 사용할 것**
+
+##### 어노테이션: `@Resource`
+
+XML의 `<property>`와 유사하게, 주입할 Bean을 아이디로 지정하는 방법이다. 수정자와 필드에 붙여서 사용할 수 있다.
+
+###### 수정자 메소드
+
+```java
+public class Hello {
+    String name;
+    Printer printer;
+
+    ...
+        
+    @Resource(name="printer")  // ==<property name="printer" ref="printer"/>
+    public void setPrinter(Printer printer) {
+        this.printer = printer;
+    }
+}
+```
+
+- `(name="printer") ` 부분은 해당 수정자 메소드가 참조할 Bean의 이름이다.
+
+  - 프로퍼티의 이름은 메소드 명명규칙을 따라서 정한다.
+
+- `@Resource`를 통한 DI를 위해선 다음 세 가지중 하나의 방법이 사용되야 한다.
+
+  1. `AnnotationConfigApplication` 또는 `AnnotationConfigWebApplication`
+  2. **Bean** 후처리기 방식을 사용하는 `<context:annotation-config />`
+
+  - 이미 등록된 Bean의 메타정보에 프로퍼티 항목을 추가해준다
+
+  3. **Bean 스캐닝**을 사용하는 `<context:component-scan>`
+     - Bean 스캐닝이 사용되면 무조건 어노테이션 DI 지원
+
+###### 필드
+
+- 필드에 `@Resource`를 사용하면, 수정자 메소드가 없어도, 참조할 Bean의 이름을 생략해도 무관하다.
+
+```java
+public class Hello {
+    String name;
+    @Resource
+    Printer printer;
+
+    ...
+        
+    //public void setPrinter(Printer printer) 메소드 없음
+}
+```
+
+- 테스트가 필요한 경우에만 수정자를 사용하고, 그렇지 않으면 과감하게 지운다.
+- `name` 엘리먼트가 생략되도, 프로퍼티의 이름과 같다고 가정한다.
+- **XML방식과의 차이**:XML은 대응되는 Bean이 없으면 skip **vs.** `@Resource`는 에러 발생
+
+##### 어노테이션: `@Autowired`
+
+XML의 타입에 의한 자동와이어링 방식을 **생성자**, **필드**, **수정자**, **일반 메소드**로 확장한 개념
+
+###### 수정자 메소드와 필드
+
+- `@Resource`와 유사하게 사용, **그러나** XML의 **타입 자동 와이어링**처럼 타입을 이용해 후보 Bean 검색
+
+###### 생성자
+
+- 생성자의 모든 파라미터에 타입에 의한 자동와이어링 적용
+  - 한개의 생성자에만 사용하는 제약이 존재한다.
+
+###### 일반 메소드
+
+- 생성자와 수정자를 통한 DI의 장점만을 취하는 어노테이션 방식만의 방법
+- 파라미터를 가진 메소드에 `@Autowired`를 붙이면, 파라미터 타입을 기준으로 자동와이어링 한다.
+  - 이렇게 만들어진 클래스는 XML을 통해서는 의존관계 설정이 불가하다.
+
+###### 중복 타입 Bean에 대처하는 `@Autowired` 사용법
+
+XML 방식에서 타입에 의한 와이어링은 동일 타입의 Bean이 다수 존재하는 경우 문제가 되었다. 하지만 `@Autowired`의 경우 이런 상황에 대응하는 몇가지 방법이 존재한다.
+
+- **컬렉션**과 **배열**
+
+  - 같은 타입의 Bean들을 배열과 컬렉션으로 주입받는 방법이다.
+
+  ```java
+  @Autowired
+  Collection<Printer> printers;
+  
+  @Autowired
+  Printer[] printers;
+  
+  @Autowired
+  Map<String, Printer> printerMap; //이경우 String으로된 Bean id가 키가 된다.
+  ```
+
+  - 다만 타입 Bean의 중복으로 인한 충돌을 피하려는 목적보다는, 여러개의 Bean을 동록하고 사용하는 목적으로 사용해야 한다.
+  - DI할 Bean이 컬렉션인 경우엔 `@Autowired`자체가 불가능 하다.
+
+- `@Qualifier` <sup>한정자</sup>
+
+  - 타입만으로 정확히 원하는 Bean을 DI할 수 없을때 사용하는 보조 어노테이션
+
+  - `@Qualifier`의 엘리먼트 정보와 매칭되는 한정자 정보가 Bean 등록시에 포함되어야 한다.
+
+    - 한정자를 통한 자동와이어링 예시
+
+      ```java
+      @Autowired
+      @Qualifer("consolePrinter")
+      Printer printer
+      ```
+
+    - XML을 통한 Bean 생성시 매칭되는 한정자 추가
+
+      ```xml
+      <bean id="stringPrinter" class="learningtest.spring.ioc.bean.StringPrinter"/>
+      <bean id="consolePrinter" class="learningtest.spring.ioc.bean.StringPrinter">
+          <qualifier value="consolePrinter"/>
+      </bean>
+      ```
+
+    - Bean 스캐닝을 통한 자동 등록의 경우
+
+      ```java
+      @Component
+      @Qualifer("consolePrinter")
+      public class Consoleprinter implements Printer{
+      ```
+
+  - `@Qualifer`를 메타 어노테이션으로 하는 커스텀 어노테이션을 사용해서 할수도 있다.
+
+    ```java
+    //커스텀 어노테이션
+    @Target({ElementType.FIELD, ElementType.PARAMETER})
+    @Retention(RetentionPolicy.RUNTIME)
+    @Qualifier
+    public @interface ConPrinter{
+        ...
+    }
+    
+    ///다른 클래스의 자동 와이어링
+    ...
+    @Autowired
+    @ConPrinter
+    Printer printer;
+    ```
+
+  - 또한 `@Qualifier`는 Bean 등록시 한정자 정보가 없더라도, 이름으로 후보를 찾아주기는 한다.
+
+    - 다만 코드의 일관성을 위해서 사용은 비추천된다.
+
+  - 생성자나 일반메소드에 직접 사용하는 것의 의미가 없으며, 파라미터에 단독으로 사용할 수 있다.
+
+    ```java
+    @Autowired
+    public void Hello(@Qualifer("consolePrinter") Printer printer, String name){
+    ```
+
+###### 후보 Bean 없는 경우 Skip하기
+
+`@Autowired(required=false)`를 사용하면, XML의 자동와이어링처럼 후보 Bean이 없을 시 Skip할 수 있다.
+
+##### 자바 코드에 의한 의존관계 설정
+
+자바 코드로 등록된 Bean의 의존관계 설정은 세 가지 방법이 있다.
+
+###### 어노테이션에 의한 설정
+
+- Bean자체의 생성은 자바코드로 하지만, DI는 앞서 살펴본 `@Autowired`나 `@Resource`로 하는 방법
+- 어노테이션을 통한 DI는 후처리기에서 이뤄진다.
+
+###### `@Bean` 메소드 호출
+
+- `@Configuration`이 붙은 자바 클래스 안에서, 직관적으로 `@Bean` 이 붙은 메소드를 호출하는 방법이다.
+- 앞서서 이미 `@Bean`메소드의 싱글톤 Bean 생성에 대해서 살펴볼 때 사용한 방법이다.
+
+```java
+@Configuration
+public class HelloConfig {
+    @Bean
+    public Hello hello(){
+        Hello hello = new Hello();
+        hello.setName("Spring");
+        hello.setPrinter(print()); //호출로 인해서 생성된 싱글톤 Bean이 DI된다.
+        return hello;
+    }
+
+    @Bean
+    public Printer print() {
+        return new StringPrinter(); 
+    }
+}
+```
+
+###### `@Bean`과 메소드 자동 와이어링
+
+- `@Bean`메소드를 직접 호출하지 않고, 해당 메소드가 리턴하는 Bean 레퍼런스를 파라미터로 주입받는 방식
+
+```java
+@Configuration
+public class HelloConfig {
+    @Bean
+    public Hello hello(Printer printer){
+        Hello hello = new Hello();
+        hello.setName("Spring");
+        hello.setPrinter(printer); //호출로 인해서 생성된 싱글톤 Bean이 DI된다.
+        return hello;
+    }
+
+    @Bean
+    public Printer print() {
+        return new StringPrinter(); 
+    }
+}
+```
+
+- `@Qualifer`를 사용해 동일 타입 중복 Bean에 대처 가능하다
+- `@Configuration` 클래스 밖에서 정의된 Bean도 사용할 수 있다.
+
+##### Bean 의존관계 설정 전략
+
+Bean 생성보다도, DI를 하는 방법은 더 다양하고, 어떤 방식이 낫다고 말할 수 없지만, 그래도 자주 쓰이는 방법들은 다음과 같다.
+
+###### XML 단독
+
+- Bean 등록과 의존관계 설정까지 모두 XML로 통일한다.
+- 의존관계 정보를 수정자를 사용할 것인가 생성자를 사용할 것인가의 선택지가 존재한다.
+- 타입에 의한 자동와이어링은 불편하고 느리므로, **이름에 의한 와이어링이 낫다.**
+
+###### XML과 어노테이션 설정의 혼합
+
+- Bean은 XML로 등록하고, 의존관계는 어노테이션으로 설정
+- 등록된 Bean에 대한 목록은 파악 가능하고, 자동 와이어링을 효율적으로 활용
+
+###### 어노테이션 단독
+
+- Bean 등록과 DI 모두 어노테이션을 사용하여 생산성 증가
+- 일부 기술서비스 Bean은 XML을 쓰지 않을 경우 `@Configuration`을 사용하여 등록
+
+#### 1.2.4 프로퍼티 값 설정 방법
+
+> 스프링에서 말하는 값이란 스프링이 관리하는 Bean이 아닌 모든 것을 말한다. ..중략.. 대개는 [스프링에서 Bean은] 상태가 없는 방식으로 만들기 때문에 필드에 있는 값은 일기전용인 경우가 대부분이다.
+
+##### 메타정보 종류에 따른 값 설정 방법
+
+###### XML: `<property>`와 전용 태그
+
+앞서서 XML에서 값은 모두 문자열로 사용하며, 문자열로 된 값을 스프링 컨테이너가 알맞은 프로퍼티 타입으로 변환해주는 것을 보았다. 스키마에 정의된 전용태그에서 `ref`로 끝나는 어트리뷰트외에는 대부분 값이라고 생각하면 된다.
+
+###### 어노테이션: `@Value`
+
+XML의 `<property>`에 대응되어 소스코드에서 값을 주입하는 역할을 하는 것이 바로 `@Value`이다.
+
+일반적으로 Bean이 아닌 스프링에서 말하는 **"값"**을 런타임으로 DI해야할 이유는 두 가지가 있다.
+
+1. 환경에 딸라서 달라질 수 있는 값
+   - 예) `Datasource`의 value들은 환경에 따라, 개발자에 따라 바뀔 수 있다.
+2. Default 값이 존재하지만 바뀔 수 있는 값
+
+XML의 `<property>`를 사용해 초기값과 다른값을 주는 것은 설정정보와 코드를 분리하여, 컴파일 시간을 아낀다는 장점이 있지만, 자바코드와 병행하는 `@Value`는 default 값을 변경하는 목적으로는 잘 사용하지 않는다.  다만`@Value`가 가지는 가치는 **역으로** 오부의 리소스나 환경정보에 단김 값을 사용하도록 **지정**해주는 데 있다.
+
+```java
+// 시스템 프로퍼티의 os.name을 가지고 와서 주입
+@Value("#{systemProperties['os.name']}")
+String name;
+
+//환경정보를 담은 별도의 파일의 정보를 가지고 주입
+@Value("${database.username}")
+String username;
+```
+
+**단,** 후자의 경우 XML에 정의된 프로퍼티 파일을 지정해줘야 한다.
+
+```xml
+<context:property-placeholder location="classpath:databse.properties"/>
+```
+
+환경에 종속적인 정보는 반드시 런타임 시에 주입받아야 하기 때문에, 자바코드를 통한 (`@Configuration`과 `@Bean`을 사용한) Bean 등록에서도 사용할 수 있다.
+
+##### `PropertyEditor`와 `ConversionService`
+
+스프링의 값을 지정할때는 XML이나 어노테이션 모두에서 문자열이 사용된다. 값이 스트링이 아닌 경우 이를 변환하는 과정이 제공된다. 이때 스프링이 사용하는 타입 변환기는 `PropertyEditor`라는 인터페이스를 구현한 것이 사용되며 특징은 다음과 같다.
+
+- 스프링 내장 프로퍼티 에디터는 기본 타입과 기본 타입의 Wrapper Class로의 변환을 모두 지원한다.
+- **기본 타입의 배열**의 경우엔, 문자열 안에 콤마<sup><strong>(,)</strong></sup>로 구분해주면 배열 형태로 변환된다.
+- 그외에도 다음의 타입 변환을 지원한다.
+  - `Charset`: UTF-8, ISO-8895-1의 값을 `java.nio.charset.Charset`으로 변환한다
+  - `Class`: `Class[]`을 포함하여, `Class.forName()`과 비슷하겍 사용할 수 있다.
+  - `Currency`: ISO 4217코드를 따르는 `java.util.Currency`타입으로 변환한다.
+  - `File`: `java.io.File` 타입으로 변환한다. 
+  - `InputStream`: `java.io.InputStream`타입으로 변환한다
+  - `Pattern`: `java.util.regex.Pattern` 타입으로 변환한다.
+  - `Resource`: 스프링의 리소스 타입으로 변환한다, 배열도 가능하다
+  - `Timezone`: `java.util.Timezone`으로 변환한다
+  - `URI`,`URL`: `java.net.URI` , `java.net.URL`로 변환한다.
+
+스프링이 기본적으로 지원하는 변환 이외의 작업이 필요한 경우엔, 직접 구현할 수 있지만 추천되지 않는다. 또한 스프링 3.0부터 `ConversionService`라는 타입 변환 API를 사용하는 것도 가능하다.
+
+##### 컬렉션
+
+자바의 컬렉션 타입은 XML로 작성해서 프로퍼티에 주입해야 한다. 컬렉션을 사용할 때는 가능한 타입 파라미터 제공해서 변환기가 적절한 변환을 할 수 있게 해야한다.
+
+###### `List`, `Set`
+
+`<List>` 와 `<Set>`을 통해 선언한다.
+
+```xml
+<property name="names">
+	<list>
+        <value>Spring</value>
+        <value>Summer</value>
+        <value>Winter</value>
+    </list>
+</property>
+```
+
+###### `Map`
+
+`<map>`과 `<entry>`태그를 이용한다.
+
+```xml
+<property name="name">
+	<map>
+        <entry key="Spring" value="Framework"/>
+        <entry key="Winter" value="isComming"/>
+    </map>
+</property>
+```
+
+###### `java.util.Properties`
+
+`<props>`와 `<prop>`을 사용한다.
+
+```xml
+<property name="names">
+	<props>
+        <prop key="Spring">Boot</entry>
+        <prop key="Winter">isComing</prop>
+    </props>
+</property>
+```
+
+###### Bean 레퍼런스 컬렉션
+
+아래와 같이 `<value>`대신 `<ref bean="">`을 사용하면 레퍼런스에 대한 컬렉션도 정의된다.
+
+```xml
+<property name="names">
+	<list>
+        <ref bean="bean"/>
+        <ref bean="wein"/>
+    </list>
+</property>
+```
+
+###### 컬렉션을 Bean으로 만들기
+
+`<util>`스키마의 전용태그를 활용해서 컬렉션을 별도의 Bean으로 만들어 참조하게 할 수 잇다.
+
+```xml
+<util:list id="names">
+    <value>Spring</value>
+    <value>Summer</value>
+    <value>Winter</value>
+</util:list>
+
+<util:map id="names">
+    <entry key="Spring" value="Framework"/>
+    <entry key="Winter" value="isComming"/>
+</util:map>
+
+<util:properties id="names">
+    <ref bean="bean"/>
+    <ref bean="wein"/>
+</util:properties>
+
+<!-- 프로퍼티는 파일을 지정해서 Bean으로 만들수도 있다-->
+<util:properties id="settings" location="classpath:settings.properties"/>
+```
+
+##### Null과 빈 문자열<sup>("")</sup>
+
+- 빈 문자열은 `value=""`
+- Null 값은 `<null />`을 사용한다.
+  - 명시적으로 null 상태임을 나타내는 정도의 의미만 가지고 있다.
+
+##### 프로퍼티 파일을 이용한 값 설정
+
+Bean 설정정보를 XML로 분리하는 것 만으로도 컴파일이 필요한 소스코드에서, 정보를  분리한다는 소득이 있다. 여기에 별도의 설정벙보를 프로퍼티 파일로 다시한번 더 분리 하면 유용하다.
+
+예를들어, 서버 환경에 따라 바뀌는 정보가 있다면, 이는 Bean설정정보를 담고 있는 XML파일에서 분리하는 것이 객체지향적인 설계를 따르는 것이다. 또한 앞서서 살펴본 코드내에 포함되는 `@Value` 어노테이션을 적극적으로 활용하기에 좋은 환경이 만들어진다.
+
+대표적인 예가 아래와 같은 DB설정정보를 분리하는 것이다.
+
+```properties
+db.driverclass=com.mysql.jdbc.Driver
+db.url=jdbc:mysql://localhost/testdb
+db.username=spring
+db.password=book
+```
+
+이렇게 별도로 분리한 설정정보 파일을, Bean의 프로퍼티 값으로 사용하게 하는데에는 두가지 변환 방법이 있다.
+
+###### 수동 변환: `PropertyPlaceHolderConfigurer`
+
+수동 변환은 프로퍼티 치환자<sup>placeholder</sup>를 사용해서 `${}`안에 넣은 값을 `value` 어트리뷰트에 넣어주는 것이다.
+
+```xml
+<context:property-placeholder location="classpath:databse:properties"/>
+
+<bean id="datasource" class="...">
+    <property name="driverClass" value="${db.driverclass}" />
+    <property name="url" value="${db.url}" />
+    <property name="username" value="${db.username}" />
+    <property name="password" value="${db.password}" />
+</bean>
+```
+
+Bean 프로퍼티 설정에 앞서서 선언된, `<context:property-placeholder>` 태그로 인해 컨테이너에 프로퍼티 정보 치환을 담당하는 `PropertyPlaceHolderConfigurer` 빈이 생성된다. 이 Bean은 Bean 팩토리 후처리기로, Bean 후처리기와 달리, Bean 오브젝트 메타정보가 준비된 후에 메타정보를 조작하기 위해 사용된다.
+
+따라서 먼저 Bean이 만들어지고 프로퍼티 내용이 주입되는 것이 아니라, 마치 설정정보에 프로퍼티에 있던 내용이 있던 것처럼 Bean이 생성되는 것이다. 또한 후처리기에 의존하는 수동적인(Passive) 방식으로, 파일의 문제나 해당 치환 대상을 찾지못해도 예외가 발생하지 않는다.
+
+###### 능동 변환: SpEL
+
+미리 대체할 정보를 위치를 지정하고, 메타정보 조작을 기다리는 방법과는 달리, 아예 프로퍼티 값을 능동적으로 가져오는 방법이 바로 Spring Expression language를 사용하는 방법이다. 유사하게 `#{}`을 사용하여 입력한다.
+
+먼저 프로퍼티 정보를 Bean으로 생성해야 한다. 이를 위해서 앞서 살펴본 `<util>` 태그를 사용한다.
+
+```xml
+<util:properties id="dbprops" location="classpath:databse:properties"/>
+
+<bean id="datasource" class="...">
+    <property name="driverClass" value="#{dbprops[db.driverclass]}" />
+    <property name="url" value="#{dbprops[db.url]}" />
+    <property name="username" value="#{dbprops[db.username]}" />
+    <property name="password" value="#{dbprops[db.password]}" />
+</bean>
+```
+
+그리고 프로퍼티의 `value` 어트리뷰트에 해당 Bean 아이디와 프로퍼티 키값을 `[]`에 넣어주면 된다. 어찌보면  Bean으로 만든 프로퍼티 정보가 수동적 변환의 Bean 팩토리 후처리기와 닮은 것 같지만, SpEL에서는 능동적으로 이미 생성된 Bean의 정보에 접근하는 방식으로 예외에 대한 감지와 대응이 용이하다.
+
+#### 1.2.5 컨테이너가 자동등록하는 Bean
+
+스프링 컨테이너 초기화 과정에서 등록하는 몇 가지 Bean 이다.
+
+##### `ApplicationContext`, `BeanFactory`
+
+스프링 컨테이너 자신을 Bean으로 등록해둔 것으로, 일반 Bean에서 필요하면 DI받아서 사용할 수 있다. 오로지 스프링을 기반으로해서 별도의 어플리케이션 프레임워크를 개발하는 경우에만 사용될 것이다.
+
+##### `ResourceLoader`, `ApplicationEventPublisher`
+
+스프링 컨테이너는 `ResourceLoader`로서 서버환경에 다양한 `Resource`를 로딩할 수 있는 기능이 있다. 웹어플리케이션에 배포된 스프링이 서블릿 컨텍스트의 리소스를 이용하는 예이다.
+
+```java
+@Autowired ResourceLoader resourceLoader;
+
+public void loadDataFile(){
+    Resource resource = this.resourceLoader.getResource("WEB-INF/info.dat");
+}
+```
+
+`ApplicationEventPublisher`는 `ApplicationListner`를 구현한 Bean에게 이벤트를 발생시키는 메소드를 가진 인터페이로, 컨테이너에 의존적인 이벤트 발생과 리스닝을 할 때 사용할 수 있지만, 일반적으로 활용하지 않는다.
+
+##### `systemProperties`, `systemEnvironment`
+
+스프링 컨테이너가 등록하는 Bean중에 이름으로 접근할 수 있는 Bean인데 해당 Bean의 타입이 `Properties`와 `Map` 타입이기 때문이다.
+
+`systemProperties`는 JVM이 생성해주는 시스템 프로퍼티 값을 읽을 수 있게 해주어, 스프링의 다른 Bean들에 프로퍼티 값을 넣어줄 때 사용할 수 있다. 소스코드에서 직접 사용한다면 `@Resource`를 사용하는 방법과 `@Value`를 사용하는 방법으로 접근할 수 있다.
+
+```java
+//전체 프로퍼티를 가지고 온다
+@Resource
+Properties systemProperties;
+
+
+//SpEL을 사용해 필요한 값만 주입한다.
+@Value("#{systemProperties['os.name']}")
+String osName;
+```
+
+그러나 자바 코드내에서 시스템 프로퍼티에 정보를 사용할 때엔 Java가 기본 제공하는 `System.getProperty()`메소드가 더 편리하다.
+
+`systemEnvironment`는 `System.getenv()`가 반환하는 환경변수가 담긴 `Map`오브젝트로 동일하게 SpEL을 통해서 사용할 수 있다. 
+
+```java
+@Value("#{systemEnvironment['path']}")
+String path;
+```
+
