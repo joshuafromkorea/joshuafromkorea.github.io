@@ -28,7 +28,7 @@ _아래내용은 바람개비 Online Study Board에서 발췌_
 
 ---
 
-#### 8. Introducing Spring Boot
+### 8. Introducing Spring Boot
 
 - 상품화 가능한 수준의 스탠드얼론 스프링기반 어플리케이션을 손쉽게 만들 수 있게 하는 도구
 - 복잡함을 단순화 하기 위해서, 제작자들이 Spring 과 Third party 라이브러리에 대한 주관적 해석을 함
@@ -40,15 +40,15 @@ _아래내용은 바람개비 Online Study Board에서 발췌_
   3. 넓은 계층의 프로젝트에서 공통적으로 사용되는 비기능적인 요소들을 제공
   4. Code Generation과 XML 설정의 완전한 배제
 
-#### 9. System Requirements
+### 9. System Requirements
 
 Java 8부터 11까지 지원하며, Spring Framework 5.1.5 이상의 버젼이 필요하며, Maven 혹은 Gradle 을 통한 빌드를 지원함
 
-##### 9.1 Servlet Containers
+#### 9.1 Servlet Containers
 
 Servlet 3.1+ 이상의 버젼을 지원하는 어떠한 Container든지 설치가능함
 
-#### 10 Installing Spring Boot
+### 10 Installing Spring Boot
 
 Java SDK 1.8이상을 필요로 하며, Java 버젼을 확인해보자.
 
@@ -59,11 +59,11 @@ Java(TM) SE Runtime Environment (build 1.8.0_181-b13)
 Java HotSpot(TM) 64-Bit Server VM (build 25.181-b13, mixed mode)
 ```
 
-##### 10.1  Installation Instruction for the Java Developer
+#### 10.1  Installation Instruction for the Java Developer
 
 Spring Boot 자체는 그 자체로 Java의 라이브러리 이기 때문에, 일반적인 자바 라이브러리처럼 `spring-boot-*.jar` 파일을 class path에 포함하기만 된다. 즉 의존성 추가만 해주면 별다른 통합 tool을 필요로 하지 않으며, 어떠한 editor를 사용해도 무관하다. 파일 카피로 할수도 있지만 아래와 같이 빌드도구를 사용하는 것이 낫다.
 
-###### 10.1.1 Maven Installation
+##### 10.1.1 Maven Installation
 
 Maven을 설치하기 위해서 레퍼런스의 설치 메뉴얼을 따라 진행해보자. Mint Linux는 sudo apt-get 명령어로 설치할 수 있다.
 
@@ -107,7 +107,7 @@ IDE를 통해 Maven 프로젝트를 생성하고, 설정하는 과정을 진행�
 
 기본적으로 생성된 POM파일에 레퍼런스나 Spring Boot 홈페이지에서 제공하는 빌드 가이드를 복사해서, 생성된 POM파일에 붙여넣기 하면 자동적으로 의존성설정이 완료된다.
 
-#### 11. Devloping Your First Spring Boot Application
+### 11. Devloping Your First Spring Boot Application
 
 개발 시작의 기본인 "Hello World" web application을 만들어 보기위해 아래의 방법을 소개한다.
 
@@ -116,7 +116,7 @@ IDE를 통해 Maven 프로젝트를 생성하고, 설정하는 과정을 진행�
 
 나의 경우는 백기선님 강좌대로, 아까 POM 파일 의존성 설정을 실습하기 위해 사용했던 소스에서 이미 `spring-boot-starter-web`을 설치 했기 때문에 이어서 진행하면 된다.
 
-###### 11.1 Creating the POM
+#### 11.1 Creating the POM
 
 위의 내용과 상동, 다른점이라면, 백기선님 강좌에서는 RC버젼이라 사설저장소 정보가 존재하지만, 현재 최신버젼인 2.1.3에서는 해당내용이 빠지게 된다. 빌드 실행에 대한 테스트는 `mvn package`명령어를 build path에서 실행하면 된다.
 
@@ -128,11 +128,11 @@ IDE를 통해 Maven 프로젝트를 생성하고, 설정하는 과정을 진행�
 
 `spring-boot-maven-plugin` 라이브러리가 `main`클래스를 필요로 하기 때문이다. 제외하면 빌드 성공!
 
-##### 11.2 Adding Classpath Dependencies
+#### 11.2 Adding Classpath Dependencies
 
 IDE기능을 사용하는게 나아서 스킵
 
-##### 11.3 Writing Code
+#### 11.3 Writing Code
 
 예제 Application을 완성하기 위해서는 아까 빌드 에러에서도 살펴본대로 Java 파일이 필요하다. Maven은 `src/main/java`에 있는 Java 파일을 컴파일 하기 때문에 해당 direcotry 구조를 만들고 이하에 java파일을 하나 추가해주면 된다. 기본적으로 IDE를 사용한 Maven 프로젝트를 생성하면 해당 디렉토리 구조가 완성되어있으니 파일만 추가해주면 된다.
 
@@ -163,7 +163,7 @@ public class Exmaple {
 
 매우 간단한 코드이지만, 저 코드로 인해 여러 작업들이 일어난다 앞으로 이어지는 레퍼런스의 내용들을 통해 하나하나 살펴보도록 하자
 
-###### 11.3.1 The `@RestController` and `@RequestMapping` Annotations
+##### 11.3.1 The `@RestController` and `@RequestMapping` Annotations
 
 - `@RestController` : _streotype_ 어노테이션[^1]으로서, 작성된 소스 코드를 읽는 다른 개발자들에게 힌트를 제공하며, Spring이 해당 클래스가 특정한 역할을 수행하도록 한다.
   - 이 경우에는 `Example` 클래스가 `@Controller`의 역할을 수행하도록 표기하여, 스프링이 해당 클래스를 인바운드 web request를 핸들링하는 클래스로 인식하게 한다.
@@ -173,7 +173,7 @@ public class Exmaple {
 
 위 어노테이션들은 SPRING MVC의 어노테이션들이며, Spring Boot 전용은 아니며 [MVC section](https://docs.spring.io/spring/docs/5.1.5.RELEASE/spring-framework-reference/web.html#mvc)링크를 통해 자세한 내용을 확인할 수 있다.
 
-###### 11.3.2 The `@EnableAutoConfiguration` 어노테이션
+##### 11.3.2 The `@EnableAutoConfiguration` 어노테이션
 
 해당 어노테이션은 Spring boot에서 제공하는 **자동설정을 하도록하는** 어노테이션으로,  기본적으로는 default 설정값을 사용하도록 한다. 예제에서는, 우리가 POM에서 선언한 `spring-boot-starter-web`의존성을 따라서, Tomcat과 Spring MVC가 의존성에추가되었기 때문에, 자동설정이 이뤄지는데 이경우 이하의 개발 코드들이 web application과 상응하는 스프링 설정이라는 것을 추론한다.
 
@@ -181,11 +181,11 @@ public class Exmaple {
 >
 > 자동설정 기능은 Starter들과 연동되어서 작동하도록 설계되어 있지만, 두 컨셉이 직접적으로 연결되어있는 것은 아니다. 개발자는 Starter가 제공하는 의존성 이외에도 jar 의존성을 선택할 수 있다. 이경우에도 Spring Boot는 Application을 위한 최적의 자동설정을 제공할 것이다.
 
-###### 11.3.3 The "main" Method
+##### 11.3.3 The "main" Method
 
 `main` 메소드는 자바의 전통을 따르는 어플리케이션의 **entry-point**역할을 담당한다. `SpringApplication` 클래스의 `run`메소드를 실행함으로서, 어플리케이션의 실행에 필요한 클래스를 파라미터로 넘겨주어서에게, `SpringApplication` 클래스가 어플리케이션을 실행한다.
 
-##### 11.4 Running the Example
+#### 11.4 Running the Example
 
 가장 간단한 방법은 `main()` 메소드를 직접 실행하는 것이다. IDE가 제공하는 실행 기능을 사용해서 실행한다.
 
