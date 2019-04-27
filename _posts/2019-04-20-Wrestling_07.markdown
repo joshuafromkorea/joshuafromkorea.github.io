@@ -1,0 +1,214 @@
+---
+layout: post
+title: "레퍼런스로 스터디하는 스프링 부트 7회차 정리"
+date: 2019-04-20
+categories:
+---
+
+계속 이어서 스프링부트를 통한 어플리케이션 실행의 추가설정에 대한 부분이다. 실행시 입력하는 arguments를 다루는 방법과, Bean으로 로딩되는 runner에 대한 내용
+
+5강 강의링크: [**SpringApplication 커스터마이징과 Admin 기능 (MBeans)**](https://youtu.be/8fK1tA7C6Ss)
+
+5강 레퍼런스: [**23.6 ~ 23.10**](https://docs.spring.io/spring-boot/docs/2.1.3.RELEASE/reference/htmlsingle/#boot-features-web-environment)
+
+---
+
+### 23.6 Web Environment
+
+스프링 어플리케이션이 알맞은 `ApplicationContext`를 개발자들 위해 생성하는 알고리즘은 아래와 같이 단순하다.
+
+- Spring MVC가 존재하면, `AnnotationConfigServletWebServerApplicationContext`를 사용한다
+- Spring MVC가 없고, Spring WebFlux가 이면 `AnnotationConfigReactiveWebServerApplicationContext`를 사용한다.
+- 이외의 경우엔 `AnnotationConfigApplicationContext`를 사용한다.
+
+기본 값을 오버라이딩 하려면 `setApplicationType()` 메소드를 통해서, `ApplicationContext`타입의 값을 전달하면 된다. 해당 타입은 enum으로 세 가지의 값이 있다. 
+
+##### `WebApplicationType.java`
+
+```java
+public enum WebApplicationType {
+    NONE,
+    SERVLET,
+    REACTIVE;
+...
+}
+```
+
+`ApplicationContext` 타입에 대한 완전한 제어를 원한다면, `setApplicationContextClass(...)`를 통해 시행할 수 있다.
+
+> JUnit test 내부에서 사용하는 `SpringApplication`의 경우엔 `WebApplicationType.NONE`으로 하는 것이 이상적이다.
+
+### 23.7 Accessing Application Argumnets
+
+어플리케이션 기동`SpringApplication.run(..)`시 전달한 arguments에 접근하길 원할 때에는, Bean을 주입받아야 하는데, `org.springframework.boot.ApplicationArguments` Bean이다. 해당 interface는 arguments에 포함된 `String[]` 상태의 값과, `option` 과 `non-option` 상태의 값 모두 접근할 수 있게 해준다.
+
+###### arguments에 접근하는 예제 소스코드
+
+```java
+@RestController
+@SpringBootApplication
+public class Exmaple {
+
+    @Autowired
+    HelloService helloService;
+
+    @RequestMapping("/")
+    String home(){
+        return helloService.getMeassage();
+    }
+}
+
+@Service
+public class HelloService {
+
+    @Autowired //ApplicationAguments DI
+    ApplicationArguments arguments;
+
+    public String getMeassage(){
+
+        List<String> helloValues = arguments.getOptionValues("hello");
+        return helloValues.stream().collect(Collectors.joining(","));
+
+    }
+}
+```
+
+`hello`라는 이름으로 전달한 arguments들을 모두 하나의 `String`으로 `,`를 사용하여 연결한 뒤 출력하는 예제이다. 아래와 같이 jar를 실행하면 된다.
+
+###### `hello`라는 이름으로 arguments 전달하며 실행
+
+```powershell
+$ java -jar target/spring.boot.study-1.0-SNAPSHOT.jar --hello=hello --hello=world
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+ :: Spring Boot ::        (v2.1.3.RELEASE)
+
+```
+
+실행 후, `http://localhost:8080` 접속시, hello,world 라고 화면에 출력되는 것을 확인 할 수 있다. 
+
+`ApplicationArguments` 인터페이스는 총 5개의 메소드를 가지고 있는데, 간단히 살펴보면 다음 과 같다.
+
+```java
+public interface ApplicationArguments {
+
+   /**
+    * Application 실행시 전달한 arguments 전체를 String 배열로 반환한다.
+    */
+   String[] getSourceArgs();
+
+   /**
+    * 전달한 arguments들의 이름을 모두 반환한다. 이름은 '--'에 뒤따르는 String으로 '='을 통해 값	* 을 지정할 수 있다.
+    * "--foo=bar --debug"를 실행시 전달한 경우 ["foo", "debug"]를 반환
+    */
+   Set<String> getOptionNames();
+
+   /**
+    * 전달한 arguments의 옵션중에, 동일한 이름의 옵션이 있는지 확인하여 boolean을 반환한다.
+    * "--debug"를 전달한 경우, containsOption("debug") == true
+    */
+   boolean containsOption(String name);
+
+   /**
+    * 예제의 메소드로, 해당 이름을 가진 모든 option이 가진 값들을 List<String>으로 반환한다.
+    */
+   List<String> getOptionValues(String name);
+
+   /**
+    * 옵션을 주지 않은 (= '--'를 사용해 전달하지 않은) 값 들을 모두 List<String>으로 반환한다.
+    */
+   List<String> getNonOptionArgs();
+
+}
+```
+
+`@Value` 어노테이션을 사용해 arguments를 한번에 `String[]`로 접근할 수 있는데, 아래의 코드로 위의 hello,world 출력예제와 동일한 결과물을 얻을 수 있다.
+
+###### `@Value` 어노테이션을 사용한 arguments 접근
+
+```java
+@Service
+public class HelloService {
+
+    @Value("${hello}") //"--hello"라는 이름으로 전달한 값을 모두 String[]로 주입
+    String[] helloValues;
+
+    public String getMeassage(){
+        return Arrays.stream(helloValues).collect(Collectors.joining(","));
+    }
+}
+```
+
+### 23.8 Using the `ApplicationRunner` or `CommandLineRunner`
+
+만약 어플리케이션 실행시에, 지정한 소스코드를 실행할 필요가 있을 경우, `ApplicationRunner` 인터페이스나 `CommandLineRunner` 인터페이스를 사용하면 된다. 
+
+- 두 인터페이스는, 동일한 방식으로 동작하며,  두 인터페이스 모두 `void run()`메소드만 소유한다
+- `ApplicationRunner.run()`의 경우엔 `ApplicationArguments` 를 매개변수로 전달받는다.
+- `CommandLineRunner.run()`의 경우엔 `String...`를 매개변수로 전달 받는다.
+- **`SpringApplication.run()` 메소드의 실행이 완료되기 바로 직전에 호출 된다.**
+- `ApplicationListner`는 Bean으로 접근하지 못하지만, **두 인터페이스는 Bean으로 접근할 수 있다.**
+  - 리스너의 경우에는 ApplicationContext의 로딩전에도 사용되기 때문
+- 두 인터페이스의 구현체가 다수일 경우 **순서 지정하는 법**
+  - `org.springframework.core.Ordered` 인터페이스 구현
+  - `org.springframework.core.annotation.Order` 어노테이션 사용
+
+###### `ApplicationRunner`를 구현해서 순서 부여하기
+
+```java
+@Component //Listner와 달리 Bean으로 Loading되기 때문에 DI 가능
+@Order(1) //Integer 숫자가 낮을 수록 우선순위가 높다
+public class MyRunnerFirst implements ApplicationRunner {
+
+    @Override
+    public void run(ApplicationArguments args) throws Exception {
+        System.out.println("first runner");
+    }
+}
+
+@Component
+@Order(2)
+public class MyRunnerSecond implements ApplicationRunner {
+    @Override
+    public void run(ApplicationArguments args) throws Exception {
+        System.out.println("runner second");
+    }
+}
+```
+
+###### 실행 결과
+
+```powershell
+INFO 6741 --- [restartedMain] Started Exmaple in 6.006 seconds (JVM running for 7.949)
+APPLICATION IS STARTED # 리스너가 실행
+first runner # @Order(1)
+runner second # @Order(2)
+```
+
+### 23.9 Application Exit
+
+`SpringApplication`은 **"shutdown hook"**이라는 것을 등록해, `ApplicationContext`를  "우아하게 (gracefully)" 종료할 수 있게 한다. 특징은 다음과 같다.
+
+- 모든 스프링 생명주기 callback들이 사용될 수 있다.
+- `DisposableBean` 인터페이스나 `@PreDestroy` 어노테이션 등등
+- `org.springframework.boot.ExitCodeGenerator` 인터페이스 구현한 Bean들을 통해, 종료시 나오는 "exit code"를 **지정해서** 반환하게 할 수 있다.
+  - 위 인터페이스는 `Exception`에 구현해서, 해당 예외 발생시에 `getExitCode()` 메소드로 제공되는 "exit code"를 반환하게 할 수 있다.
+
+### 23.10 Admin Features
+
+- `spring.application.admin.enabled` 프로퍼티를 통해 어드민 관련 기능을 활성화 시킬 수 있다.
+  - `MBeanServer`에 `SpringApplicationAdminMXBean`을 노출 시킨다.
+- 이 기능을 활성화 하면, 원격으로 스프링 부트 어플리케이션을 관리할 수 있게 해준다.
+  - 어플리케이션이 사용하는 HTTP 포트는 `local.server.port` 프로퍼티로 확인할 수 있다.
+
+ 
+
+
+
+
+
