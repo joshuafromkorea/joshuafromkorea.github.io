@@ -1,0 +1,197 @@
+---
+layout: post
+title: "레퍼런스로 스터디하는 스프링 부트 8회차 정리"
+date: 2019-05-02
+categories:
+---
+
+`*.properties` 나 `*.yml`과 같은 외부 설정 파일이나, 환경변수, 시스템변수등을 바인딩받아서 사용하는 방법에 대한 내용이다. 
+
+8강 강의링크: [**프로퍼티와 각종 외부 설정의 우선 순위**](https://youtu.be/jv50m3yOemU)
+
+8강 레퍼런스: [**24 ~ 24.6**](https://docs.spring.io/spring-boot/docs/2.1.3.RELEASE/reference/htmlsingle/#boot-features-application-admin)
+
+---
+
+### 24. Externalized Configuration
+
+스프링부트는 동일한 어플리케이션 코드가 다른환경에서 사용되도록, 소스 외부에 설정을 두도록 제공한다. 앞서서 살펴본 command-line arguments를 포함하여, 프로퍼티 파일이나, YAML형식의 파일이 그러한 외부 설정 자원이 될 수 있다.
+
+이러한 설정을 소스 내부에서 주입받아서 사용하기 위해 여러가지 방법을 지원한다. `@Value` 어노테이션, 스프링의 `Environment` 추상화, `@ConfigurationProperties`를 통한 객체에 귀속시키는 법들이다.
+
+##### 설정파일 우선순위와 오버라이딩 정의
+
+1. 스프링부트 개발자도구(devtools)가 활성화 되었을 때, 해당 글로벌 설정 (home directory 이하의 `.spring-boot-devtools.properties`파일)
+2. 테스트에 선언한 `@TestPropertySource` 설정
+3. `@SpringBootTest` 어노테이션이나 테스트 관련 기타 어노테이션에 `properties` 어트리뷰트로 선언한 설정
+4. 커맨드라인에 입력한 arguments (`java -jar`로 실행할 때 전달하는 값들)
+5. `SPRING_APPLICATION_JSON` 의 형태로 만든 프로퍼티, 시스템변수나 환경변수로 전달하여 사용
+6. `ServeletConfig`의 초기화 파라미터
+7. `ServletContext`의 초기화 파라미터
+8. `java:comp/env` 의 JNDI 어트리뷰트
+9. 자바 시스템 변수(`System.getProperties()`)
+10. OS 환경변수
+11. `random.*` 이하에 위치한  `RandomValuePropertySource` 설정
+12. 패키지 된 jar **외부의** "*profile-specific*" 어플리케이션 프로퍼티(`application-{profile}.properties` )설정
+13. 패키지 된 jar **내부의**   "*profile-specific*" 어플리케이션 프로퍼티(`application-{profile}.properties` )설정
+
+14. 패키지 된 jar **외부의** 어플리케이션 프로퍼티(`application.properties`) 설정
+15. 패키지 된 jar **내부의** 어플리케이션 프로퍼티 `application.properties` 설정
+16. `@Configuration` 클래스내부에 사용한 `@PropertySource` 어노테이션의 설정
+17. 스프링 어플리케이션의 default 프로퍼티 (`SpringApplication.setDefaultProperties)
+
+##### 설정 파일 우선순위와 오버라이딩 예제
+
+###### `HelloService.java`
+
+```java
+@Service
+public class HelloService {
+
+    //name으로 정의된 프로퍼티 값을 가져오는 어노테이션
+    @Value("${name}")
+    String name;
+
+    public String getMeassage(){return "Hello "+name; }
+
+...
+}
+```
+
+###### `application.properties` (어플리케이션 클래스 패스 내부)
+
+```properties
+name=joshua
+```
+
+위와 같이, `@Service` 코드가 있고,  클래스패스 내의 `application.properties`파일에 `name` 에 대하여 `joshua`로 정의되어 있을 때, 이 값들은 더 우선순위가 높은 설정정보에 의해서 오버라이딩 될 수 있다. 아래의 예시들은 `joshua`로 되어있는 `name` 을 `kiwon` 으로 오버라이딩 하는 예시이다.
+
+###### 실행시 arguments로 전달
+
+```shell
+joshua@joshua-PC 64 ~/StudyBootWithRef (master)
+$ java -jar target/spring.boot.study-1.0-SNAPSHOT.jar --name="kiwon"
+```
+
+###### `SPRING_APPLICATION_JSON` 사용해 환경변수로 전달
+
+```shell
+joshua@joshua-PC 64 ~/StudyBootWithRef (master)
+$ SPRING_APPLICATION_JSON='{"name":"kiwon"}' java -jar target/spring.boot.study-1.0-SNAPSHOT.jar
+```
+
+#### 24.1 Confiugraing Random Values
+
+`RandomValuePrpertySource`는 무작위 값을 주입받을 때 사용하면 편리하다. 정수, 실수, uuid 값 혹은 문자열을 아래 예시처럼 주입받을 수 있다.
+
+```properties
+my.secret=${random.value}
+my.number=${random.int}
+my.bignumber=${random.long}
+my.uuid=${random.uuid}
+my.number.less.than.ten=${random.int(10)}
+my.number.in.range=${random.int[1024,65536]}
+```
+
+#### 24.2 Accessing Command Line Prperties
+
+`SpringApplication`은 기본적으로 command line에서 입력된 옵션 arguments들을 `property`로 변환하고, 스프링 `Environment`에 추가한다. command line 입력은 다른 환경 설정 파일들을 오버라이딩 하기 때문에, 이를 비활성화 하고자 하면 `SpringApplication.setAddCommandLineProperties(false)`로 세팅해주면 된다.
+
+#### 24.3 Application Property Files
+
+`SpringApplication`은 아래 경로에 `application.properties`라는 파일이 있으면 해당 파일에서 설정정보를 읽어서,  스프링 `Environment`에 추가한다.
+
+1. 현재 경로내의 `/config` 서브 디렉토리
+
+2. 현재 경로
+
+3. 클래스패스의 `/config` 패키지
+
+4. 클래스패스 루트
+
+번호 순서대로 우선순위가 높으며 오버라이딩 할 수 있다. 또한 **YAML**형식의 `*.yml` 파일을 `.properties` 파일 대신 쓸 수 있다.
+
+`spring.config.name` 를 통해 이름을 재정의하면, `application.properties`의 파일 이름을 바꿀 수 있고, `spring.config.location` 를 바꾸면, 특정한 위치를 지정할 수도 있다. 추가 경로에 대한 설정을 할 때에는, `spring.config.additional-location`를 사용하면 된다.
+
+###### application을 실행할 경로에 `application.properties` 생성
+
+```powershell
+joshau@home ~/blog/StudyBootWithRef (master)
+$ vi application.properties
+
+joshau@home ~/blog/StudyBootWithRef (master)
+$ ll
+total 21
+-rw-r--r-- 1 Hewon 197121   14 4월  28 17:58 application.properties
+drwxr-xr-x 1 Hewon 197121    0 3월  16 17:22 notes/
+-rw-r--r-- 1 Hewon 197121 1980 4월  20 22:19 pom.xml
+-rw-r--r-- 1 Hewon 197121 8716 4월  20 22:19 README.md
+drwxr-xr-x 1 Hewon 197121    0 4월   3 19:37 src/
+drwxr-xr-x 1 Hewon 197121    0 4월  28 15:42 target/
+
+joshau@home ~/blog/StudyBootWithRef (master)
+$ java -jar target/spring.boot.study-1.0-SNAPSHOT.jar
+```
+
+실행경로에 있는 `application.properties`가 클래스패스의 설정파일보다 우선시되기 때문에, 실행시, `kiwonseo`가 `joshua`를 대체하게 된다.
+
+###### command line arguments 로 환경변수 지정을 한 예
+
+```powershell
+$ java -jar myproject.jar --spring.config.name=myproject
+$ java -jar myproject.jar --spring.config.location=classpath:/default.properties,classpath:/override.properties
+```
+
+이런 기본 설정에 대한 오버라이딩은 역순으로 적용되는데, 다만 이런식의 기본 설정을 바꾸는 것은, 혼란을 야기할 수 있기 때문에 추천하지 않는다.
+
+#### 24.4 Profile-specific Properties
+
+ "*profile-specific*" 설정파일도 `application.properties` 설정파일에 추가적으로 정으될 수 있는데, 관습적으로 `application-{profile}.properties`의 형태를 따른다. `[default]` 라는 이름의 기본 프로파일이 `Environment`에 정의 되어있다. 따라서 아무런 프로파일을 명시적으로 사용하지 않으면, `application-default.properties`를 사용하게 된다.
+
+이런  "*profile-specific*" 설정파일들은 "*non-specific*" 설정파일보다, 우선순위가 높으며, 만약 여러개의  "*profile-specific*" 설정파일을 사용하면 가장 마지막에 정의된 것이 사용된다. `spring.profiles.active` 설정으로  "*profile-specific*" 설정파일을 활성화 시킬 수 있는데, 만약 다음의 세 가지 설정파일이 동일 경로에 있을 시,
+
+###### `application.properties`
+
+```properties
+logging.level.root=INFO
+spring.application.admin.enabled=true
+name=${random.uuid}
+spring.profiles.active=A,B
+```
+
+###### `application-A.properties`
+
+```properties
+name=A
+```
+
+###### `application-B.properties`
+
+```properties
+name=B
+```
+
+어플리케이션 기동시에, `application.properties`가 로딩되고, `spring.profiles.active=A,B`로 인해서 `application-A.properties`와 `application-B.properties`가 순차적으로 로딩된다. 그리고 가장 마지막에 로딩되는 `application-B.properties`에 정의된 값으로 오버라이딩 되기 때문에, **`name`**은 `B` 가 된다.
+
+#### 24.5 Placeholders in Properties
+
+`application.properties`에 있는 값들은 사용될 때, `Environment`를 통해서 필터되기 때문에, 해당 파일내부에서 재사용되어 참조될 수 있다.
+
+###### `application.properties`
+
+```properties
+foo=${random.uuid}
+name=joshua ${foo}
+```
+
+`foo`에 무작위로 생성되어 할당된 uuid가 `name`에서 재사용되는 것을 확인할 수 있다. 이를 통해 스프링부트에 미리 정의되어 있는 프로퍼티의 이름을 **간략화** 할 수 있다.
+
+###### `--server.port`를 `--port`로 쓸 수 있게 바꾸는 경우
+
+```properties
+server.port=${port:8080}
+```
+
+#### 24.6 Encrypting Properties
+
+스프링부트는 프로퍼티 값들에 대한 암호화에 대해서 내장된 기술을 제공하지 않는다. 다만 `Environment`가 가지는 값들에 대한 추가적인 로직을 적용할 수 있는 포인트를 `EnvironmentPostProcessor` 인터페이스를 통해 제공한다. 해당 인터페이스를 구현한 로직을 통해서 어플리케이션이 시작되기전에 `Environemtn`를 변경할 수 있다.
