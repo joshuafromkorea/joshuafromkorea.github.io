@@ -1,0 +1,380 @@
+---
+layout: post
+title: "우아한테크 세미나 4월 25일 - TDD 리팩토링"
+date: 2019-05-25
+categories:
+---
+
+매주 회사 후배들과 공부중인 스프링부트 레퍼런스 문서를 통한 스터디가 1주간 휴식하게 되어서 무슨 공부를 할까 하다가 [우아한테크 유튜브](https://www.youtube.com/channel/UC-mOekGSesms0agFntnQang)가 개설되었다는 소식을 Linkedin 통해서 접하고, 첫번쨰로 올라온 4월달의 우아한테크 세미나에서 박재성님이 강의하신 [TDD 리팩토링](https://youtu.be/bIeqAlmNRrA) 강의를 보게 되었다.
+
+사실 우아한테크 5월세미나에 참석하고 싶었는데 ㅠㅠ, 설문지를 좀 성의없게 썻다고 판단했는지 참여하지 못했다. 대부분 랜덤 추첨이라고 말하는 것 같아서 참석을 원하는 사유에 "자바와 친해지고 싶어요"라고 썻는데, 4월 달에 진행된 세미나 강의를 들어보니 설문내용이 중요한 듯 하다.
+
+강의 내용 1시간이 가득차는게 느껴질 정도로 탄탄하고 TDD와 리팩토링, 그리고 클린코더가 되는 길에 대한 의지를 다시 불태울 수 있게 하는 좋은 강의였다. 6월에 테크세미나가 있으면 꼭 참석하도록 해야지.
+
+---
+
+- #### 시작하기 전에
+
+  - TDD와 리팩토링의 중요성에 대해서는 생략
+
+  #### 1. 의식적인 연습이란
+
+  - 무의식속에서의 연습은 양이 많아도 know-how가 되지 않는다.
+  - 5~6년의 경력이 쌓여야지, 테스트와 관련된 코드를 보는 눈과 감이 생긴다.
+  - **즉,** 생각만큼 연습을 많이 할 수 있는 과제가 아니다
+
+  ##### 효과적인 TDD, 리팩토링 연습법
+
+  1. 효과적인 훈련기법이 있는 기술연마
+  2. **컴포트 존을 벗어나라**: 내가 익숙하지 않은 것을 연습해라(살짝만)
+  3. **명확하고 구체적인 목표**
+  4. 계획적인 연습, 의식적인 연습
+  5. **피드백을 만들 수 있는 장치**: 쉽지는 않다
+  6. 효과적인 심적 표상(?)
+  7. **기존 습득한 기술에 집중 및 개선**
+
+  ##### 예시: 우테코 프리코스
+
+  - 3주 동안 매주 해결해야할 미션이 주어진다
+  - Github에 Pull Request를 보내고, **피드백**이 주어진다.
+  - 기능요구사항과 더불어서 **프로그래밍 제약사항**이 주어진다
+    - 1주차
+      - **자바 코드 컨벤션**을 지킨다
+      - 인덴트 depth는 2까지만 허용한다.
+      - **메소드**는 오직 **한가지**일만 하도록 한다
+    - 2주차
+      - **메서드 라인은 15개 제한**
+      - **ELSE 사용 금지**: switch/case 도 사용 금지
+    - 3주차
+      - **메서드 길이 10줄**
+      - 인덴트 뎁스 = 1
+      - 메서드 파라미터는 최대 3개
+
+  #### 2. TDD. 리팩토링 적용 - 개인
+
+  - **TDD, 리팩토링 == 운동**  이라는 마음가짐
+    - 중요한지는 알지만, 꾸준히 하는게 힘들어서 안한다.
+    - 평생에 걸친 도전이다.
+  - **시작하기**
+    - 주변 정리해 연습시간 확보하기
+    - **Toy 프로젝트**: 회사 프로젝트로는 연습하지 마라!
+
+  ##### 1단계 - 단위테스트 연습
+
+  - 내가 사용하는 API 사용법을 익히기 위한 **학습 테스트**
+    - `String` 클래스의 다양한 메서드 사용법
+    - `ArrayList`에 데이터를 추가, 수정, 삭제하는 방법
+    - **연습효과**
+      - 단위테스트 방법을 학습할 수 있다. 
+      - 도구사용법을 익힐 수 있다.
+      - API 학습효과가 있다.
+  - **I/O**가 **명확한** **Util성** 클래스의 메소드 단위테스트 연습
+  - 알고리즘 학습시에도 단위테스트 작성하기
+
+  ##### 2단계 - TDD 연습
+
+  - 어려운 문제 해결X, **TDD 연습**을 위한 난이도가 낮은 **익숙한**문제로 시작
+  - 웹, 모바일, UI나 DB에 **의존관계**를 가지지 않는 요구사항
+
+  ###### 예시: 문자열 덧셈 계산기 - 메서드 분리
+
+  - **요구사항**: 쉼표 또는 콜론으로 구분한 문자열을, 분리하여 숫자의 합을 반환
+
+  |      입력      | 출력 |
+  | :------------: | :--: |
+  | `null` or `""` |  0   |
+  |     `"1"`      |  1   |
+  |    `"1,2"`     |  3   |
+  |   `"1,2:3"`    |  6   |
+
+  - **TDD Cycle**
+
+  ```mermaid
+  graph LR
+  	A[실패하는 테스트]
+  	B[성공하는 테스트]
+  	A-->|소스 작성 및 수정|B
+  	B-->|리팩토링|A
+  ```
+
+  일반적으로 **리팩토링**을 뺴먹고 실패하는 테스트를 만들고 작성하고 하는 것만 병렬적으로 한다.
+
+  1. **실패하는 테스트**
+
+  ```java
+  public class StringCalculatorTest {
+      @Test
+      public void null_또는_빈값(){
+          assertThat(StringCalculator.splitAndSum(null)).isEqaulTo(0);
+          assertThat(StringCalculator.splitAndSum("").isEqaulTo(0)); 
+      }
+      
+      @Test
+      public void 값_하나(){
+          assertThat(StringCalculator.splitAndSum("1")).isEqualTo(1);
+      }
+      
+      @Test
+      public void 쉼표_구분자(){
+          assertThat(StringCalculator.splitAndSum("1,2")).isEqualTo(3);
+      }
+      
+      @Test
+      public void 쉼표_콜론_구분자(){
+          assertThat(StringCalculator.splitAndSum("1,2:3")).isEqualTo(6);
+      }
+  }
+  ```
+
+  1. **상응하는 Production 코드**
+
+  ```java
+  public class StringCalculator {
+      public static int splitAndSum(String text){
+          int result = 0;
+          if(text == null || text.isEmpty()){
+              result = 0;
+          }else{
+              String[] values = text.split(",|:");
+              for(String value : values){
+                  result += Integer.parseInt(value);
+              }
+          }
+          return result;
+      }
+  }
+  ```
+
+  1. **메서드 분리 리팩토링**
+
+     - **들여쓰기를 없애자** == **메서드 분리**
+
+     ```java
+     public class StringCalculator {
+         public static int splitAndSum(String text){
+             int result = 0;
+             if(text == null || text.isEmpty()){
+                 result = 0;
+             }else{
+                 String[] values = text.split(",|:");
+                	result = sum(values);
+             }
+             return result;
+         }
+         private static int sum(String[] value){
+             int result = 0;
+             for(String value : values){
+                 result+= Integer.parseInt(value);
+             }
+             return result;
+         }
+     }
+     ```
+
+     - **`else` 예약어를 쓰지 않는다**: `else`를 쓰게 되면 로컬 변수를 만들게 된다
+
+     ```java
+     public class StringCalculator {
+         public static int splitAndSum(String text){
+             if(text == null || text.isEmpty()){
+                 return 0;
+             }
+             String[] values = text.split(",|:");
+             return sum(values);
+         }
+         private static int sum(String[] value){
+             int result = 0;
+             for(String value : values){
+                 result+= Integer.parseInt(value);
+             }
+             return result;
+         }
+     }
+     ```
+
+     - **메소드가 한가지 일만 하기**: 정성적인 부분이다.
+
+     ```java
+     public class StringCalculator {
+         public static int splitAndSum(String text){
+             [...]
+         }
+         private static int[] toInts(String[] value){
+             int numbers[] new int[values.length];
+             for(int i = 0; i < values.length ; i++){
+                 numbers[i] = Integer.parseInt(values[i]);
+             }
+             return numbers;
+         }
+         private static int sum(int[] numbers){
+             int result = 0;
+             for(int number: numbers){
+                 result += number;
+             }
+             return result;
+         }
+     }
+     ```
+
+     - **로컬변수가 필요한가?**: `return` 예약어로 바로 사용
+
+     ```java
+     public class StringCalculator {
+         public static int splitAndSum(String text){
+             if(text == null || text.isEmpty()){
+                 return 0;
+             }
+             return sum(toInts(text.split(",|:")));
+         }
+         private static int[] toInts(String[] value){
+             [...]
+         }
+         private static int sum(int[] numbers){
+             [...]
+         }
+     }
+     ```
+
+     - **Compose Method 패턴**: 메소드들이 의도가 잘 들어나게 **동등한 수준 작업**하도록 나눈다
+       - 기존 코드에서 메서드를 분리한 수준에서 작동하는 코드듣 다 분리한다.
+
+     ```java
+     public class StringCalculator {
+         public static int splitAndSum(String text){
+             if(isBlank(text)) return 0;
+             return sum(toInts(split(text));
+         }
+         private static boolean isBlank(String text){
+             return (text == null || text.isEmpty());
+         }
+         private static String[] split(String text){
+             return text.split(",|:");
+         }
+         private static int[] toInts(String[] value){
+             [...]
+         }
+         private static int sum(int[] numbers){
+             [...]
+         }
+     }
+     ```
+
+  ##### 3단계 리팩토링 연습 - 클래스분리
+
+  - 위의 예제에 제약 사항 추가: **숫자 이외의 값 혹은 음수는** `RuntimeException`을 `throw` 한다.
+
+  |    입력    |        출력        |
+  | :--------: | :----------------: |
+  | `"-1,2:3"` | `RuntimeException` |
+
+  1. **테스트 코드의 추가**
+
+  ```java
+  @Text(expected = RuntimeEx ception.class)
+  public void 음수값(){
+      StringCalculator.splitAndSum("-1,2:3");
+  }
+  ```
+
+  1. **프로덕션 코드**
+
+  ```java
+  public class StringCalculator {
+      public static int splitAndSum(String text){
+          [...]
+          
+          return sum(toInts(split(text)));
+      }
+      private static int[] toInts(String[] values){
+          int[] numbers = new int[values.length];
+          for(int i = 0; i < values.length; i++){
+              numbers[i] = toInt(values[i]);
+          }
+          return numbers;
+      }
+      private static int toInt(String value){
+          int number = Integer.parseInt(value);
+          if(number < 0 ){
+              throw new RuntimeException();
+          }
+          return number;
+      }
+  }
+  ```
+
+  1. **리팩토링**
+
+     - 모든 원시값과 문자열을 포장한다: 위 예제의 `toInt()`를 `Positive`클래스로
+
+     ```java
+     public class Positive {
+         private int number;
+         
+         public Positive(String value){
+             this(Integer.parseInt(value));
+         }
+         public Positive(int number){
+             if(number <0){
+                 throw new RuntimeException;
+             }
+             this.number = number;
+         } 
+         
+         //helper 메소드
+         public Positive add(Positive other){
+             return new Positive(this.getNumber() + other.getNumber());
+         }
+         public int getNumber(){
+             return number;
+         }
+     }
+     ```
+
+     - 일급 콜렉션을 쓴다: primitive 타입을 포장하는, 컬렉션을 포장하는 클래스를 쓴다.
+     - 3개이상의 인스턴스 변수를 가진 클래스는 쓰지 않는다.
+
+  ##### 4단계: 장난감 프로젝트 난이도 높이기
+
+  - 게임과 같이 요구사항이 **명확**한 프로그램으로 연습
+  - 의존관계 없이 연습
+  - 약간은 복잡한 로직이 있는 프로그램
+
+  ###### 예시
+
+  - 로또, 사다리타기, 볼링 게임 점수판, 체스 게임, 지뢰찾기 게임
+
+  ##### 5단계 : 의존관계를 추가하여 난이도 높이기
+
+  - 웹, 모바일 데이터베이스와 같은 의존관계 추가
+  - 테스트하기 쉬운부분과 어려운 부분을 보는 눈과 **감(sense)**이 필요하다
+
+  ##### 그 이후
+
+  - 이 단계는 처음부터 하면 TDD를 포기하게 된다.
+  - 컴파일에러 발생시키지 않기
+  - 레거시 어플리케이션에 테스트코드 추가해 리팩토링하기 (난이도 최상)
+
+  #### 3. TDD. 리팩토링 적용 - 개인(주니어) -> 팀
+
+  - TDD, 리팩토링의 필요성과 좋은점을 전파하고 싶다.
+  - **단,** 사람은 기본적으로 변화를 거부하며, 팀은 더 변화를 거부하며, 대부분 TDD를 실패해봤다
+
+  ##### 방법
+
+  - 내가 맡은 기능 구현에 TDD, 리팩토링 적용, 묵묵히 혼자 진행한다.
+  - 관심있는 사람이 생기면 전파교육 한다
+    - 동료의 관시에서 **작은 성공**을 맛본다
+  - 리더가 하지말라고 하면 **그만둔다!**
+  - **연봉을 올려서 이직한다!**
+    - 동일하게 전파를 시도하고 결국 **리더**가 된다
+
+  #### 4. TDD. 리팩토링 적용 - 내가 리더
+
+  - 팀의 리더가 시키더라도, 사람은 변화를 거부하고, **욕하면서 한다**
+
+  ##### 방법
+
+  - 신뢰를 바탕으로 1:1로 공략해서, 각자가 개선할 부분을 말하고, 해결책을 **제안하도록 유도**한다.
+    - 불만이나 문제에 대한 해답을 제시하려고 하지마라
+    - "어떻게 하면 될까?" "너라면 어떻게 할 것 같아?" 라고 반문 하라
+  - **실패도 괜찮다.** 실패의 책임을 물어본다면, **그만둬라**
