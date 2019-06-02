@@ -89,13 +89,13 @@ categories:
 
   - **TDD Cycle**
 
-  ```mermaid
+  <div class="mermaid">
   graph LR
   	A[실패하는 테스트]
   	B[성공하는 테스트]
   	A-->|소스 작성 및 수정|B
   	B-->|리팩토링|A
-  ```
+ </div>
 
   일반적으로 **리팩토링**을 뺴먹고 실패하는 테스트를 만들고 작성하고 하는 것만 병렬적으로 한다.
 

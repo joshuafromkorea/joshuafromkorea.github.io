@@ -1,0 +1,188 @@
+---
+layout: post
+title: "레퍼런스로 스터디하는 스프링 부트 13회차 정리"
+date: 2019-06-01
+categories:
+---
+3달간 1강 씩 공부하다가, 잠시 1주일의 휴식기간을 갖고, 남은 3달간 39강까지 2~3강으로 끊어서 달리기로 했다. 그 시작인 13강은 부터 Spring Web Application, Spring MVC에 대해서 다루기 시작한다.
+
+---
+
+### 29 Custom Log Configuration
+
+* `spring-boot-starter-web` 모듈로 아주 빠르게 내장된 HTTP 서버를 쉽게 스프링부트로 만들 수 있다.
+* `spring-boot-starter-webflux` 모듈을 통해서는 리액티브한 어플리케이션도 만들 수 있다.
+
+#### 29.1 The "Spring Web MVC Framework"
+
+* 잘 알고 있듯이 MVC 는 model & view & controller 를 기반으로 한 웹 프레임워크이다
+  * `@Controller` 혹은 `@RestController` 빈을 통해서 HTTP 요청을 핸들
+  * `@RequestMapping`을 통해서 요청을 메소드에 매핑
+
+* Spring MVC는 Spring Framewok의 핵심이다.
+
+##### 29.1.1 Spring MVC Auto-configuration
+
+* 스프링부트에서는 Spring MVC를 위해 아래와 같은 기능을 **자동설정**(auto-configuration)으로 제공한다.
+
+  * `ContentNegotiatingViewResolver` : 요청이 원하는 View가 어떤건지 판단하고 Return 할 view의 형태를 정하는 Bean
+
+    * 예) `index.html` 으로 요청이 들어오면, `html`형태로 답하도록 한다
+    * 여러개의 ViewResolver 구현체를 통해 다수의 view가 정해졌을때 **결정하는 역할**
+
+  * `BeanNameViewResolver` : view를 찾을때, bean의 이름으로 찾도록 하는 기능을 하는 bean
+
+    * 예)아래의 경우 `"main"`이라는 이름으로 `name` 이라는 이름의 Bean을 찾는다.
+
+    ```java
+    @RequestMapping("index")
+    public String index() {
+        return "main";
+    }
+    ```
+
+  * **WebJars**와 같은 static한 자원을 제공하는 기능에 대한 지원
+
+  * `Converter`, `GenericConverter`, `Formatter` Bean들을 자동으로 등록
+
+  * `HttpMessageConverters`: 요청과 응답의 본문을 변환하는 기능
+
+  * `MessageCodesResolver`: 의 자동 등록
+
+  * Static `index.html` 지원
+
+  * `Favicon` 커스터마이징 지원
+
+  * `ConfigurableWebBindingInitializer` bean의 자동 사용
+
+* 추가적인 [MVC 설정](https://docs.spring.io/spring/docs/5.1.5.RELEASE/spring-framework-reference/web.html#mvc)을 추가하고 싶으면, `@Configuration` 어노테이션을 `WebMvcConfigurer`를 구현한 자체 설정 클래스를 만들고, method를 오버라이딩 하라, **단 `@EnableWebMvc`는 제외**
+
+```java
+@Configuration
+//@EnableWebMvc <- 사용하지 말것
+public class WebConfig implements WebMvcConfigurer {
+    
+}
+```
+
+* 만약에 커스터마이징된 `RequestMappingHandlerMapping`,`RequestMappingHandlerAdapter`, `ExceptionHandlerExceptionResolver` 를 제공하고 싶다면, `WebMvcRegistrations`를 구현한 뒤 선언하면 된다.
+
+```java
+public interface WebMvcRegistrations {
+    default RequestMappingHandlerMapping getRequestMappingHandlerMapping() {
+        //선언부
+        return null;
+    }
+
+    default RequestMappingHandlerAdapter getRequestMappingHandlerAdapter() {
+        //선언부
+        return null;
+    }
+
+    default ExceptionHandlerExceptionResolver getExceptionHandlerExceptionResolver() {
+        //선언부
+        return null;
+    }
+}
+```
+
+* 앞서서 언급한 `@EnableWebMvc`를 `@Configuration`과 같이 설정하여 `WebMvcConfigurer`를 구현하면, 스프링 MVC의 **완전한 통제**를 할 수 있다.
+
+##### 29.1.2 HttpMessageConverters
+
+* HTTP 요청과 응답에 대한 컨버팅은 `HttpMessageConverter`라는 인터페이스를 통해서 변환한다
+* 기본 설정으론은, 예를 들어, object들을 Jackson library를 통해서 JSON으로 변환한다
+* 기본적으로 string들은 `UTF-8` 로 인코딩해준다.
+* 위의 설정들을 커스터마이징 하고 싶으면. 부트의 `HttpMessageConverters` 클래스를 아래와 같이 사용하면 된다.
+
+```java
+import org.springframework.boot.autoconfigure.web.HttpMessageConverters;
+import org.springframework.context.annotation.*;
+import org.springframework.http.converter.*;
+
+@Configuration
+public class MyConfiguration {
+
+	@Bean
+	public HttpMessageConverters customConverters() {
+		HttpMessageConverter<?> additional = ...
+		HttpMessageConverter<?> another = ...
+		return new HttpMessageConverters(additional, another);
+	}
+
+}
+```
+
+* `HttpMessageConverter`로 생성된 모든 bean들은 리스트화 된다 => `HttpMessageConverters` 가 기본적으로 가지는 것은 다음과 같다.
+  * `ByteArrayHttpMessageConverter`
+  * `StringHttpMessageConverter`
+  * `StringHttpMessageConverter`
+  * `ResourceHttpMessageConverter`
+  * `ResourceRegionHttpMessageConverter`
+  * `SourceHttpMessageConverter`
+  * `AllEncompassingFormHttpMessageConverter`
+  * `MappingJackson2HttpMessageConverter`
+  * `MappingJackson2HttpMessageConverter`
+  * `Jaxb2RootElementHttpMessageConverter`
+
+* 아래와 같이 `HttpMessageConverters`에 다른 `Converter`를 추가하거나 커스터마이징 할 수 있다.
+
+  * 새로운 `Convertor`를 추가하면, 기본 설정된 다른 컨버터들이 제외되거나 하는 스프링부트의 기본 설정이 있다.
+
+  ###### `GsonHttpMessageConverter`를 추가하는 코드
+
+    ```java
+  @Configuration
+  public class WebConfig implements WebMvcConfigurer {
+  
+    @Bean
+    public HttpMessageConverters customCoverters(){
+        GsonHttpMessageConverter converter = new GsonHttpMessageConverter();
+                return new HttpMessageConverters(converter);
+    }
+  
+  }
+    ```
+
+  ###### pom.xml 에 의존성도 잊지않고 넣어주자
+
+	```xml
+<dependency>
+    <groupId>com.google.code.gson</groupId>
+    <artifactId>gson</artifactId>
+</dependency>
+	```
+
+##### 29.1.3 Custom JSON Serializers and Deserializers
+
+* Jackson을 사용하면 JSON 데이터를, 직렬화 및 역직렬화 할 수 있다.
+
+* 기본제공하는 클래스를 커스터마이징 할 경우가 있는데, 스프링부트에서는 간단한 `@JsonComponent`라는 어노테이션을 통해서 커스텀 설정을 스프링 Bean으로 등록할 수 있게 해준다.
+
+* `JsonSerializer`나 `JsonDeserializer` 구현체에 직접 `@JsonComponent`에 붙이면된다.
+
+  * 혹은 해당 클래스들을 내부클래스로 가지고있는 외부클래스에 붙여도된다.
+
+  ```java
+  import java.io.*;
+  import com.fasterxml.jackson.core.*;
+  import com.fasterxml.jackson.databind.*;
+  import org.springframework.boot.jackson.*;
+  
+  @JsonComponent
+  public class Example {
+  
+  	public static class Serializer extends JsonSerializer<SomeObject> {
+  		// ...
+  	}
+  
+  	public static class Deserializer extends JsonDeserializer<SomeObject> {
+  		// ...
+  	}
+  
+  }
+  ```
+
+* 모든 `@JsonComponent`가 붙은 bean들은 자동으로 `ApplicationContext`에 등록된다.
+* 스프링부트는 추가적으로 `JsonObjectSerializer` `JsonObjectDeserializer` 기본클래스를, 일반적인 Jackson의 직렬화 오브젝트의 대체제로 제공한다
+
