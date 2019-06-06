@@ -1,0 +1,177 @@
+---
+layout: post
+title: "이것이 자바다 self study - chapter 13"
+date: 2018-06-06
+categories:
+---
+
+전장의 스레드와 함께 제네릭은 항상 나에게 있어서 뭔지는 알겠는데 명확하게 이해하기 힘든 물건이다. 특히 제네릭은 자바 도큐먼트나 선배 개발자들이 남겨놓고 간 레거시 코드에 수두룩하게 있는데 항상 나에게 걸림돌이 되어왔다. 책으로 접하는 것과 실무에서 접하는건 여전히 다르다는 것을 휴일을 맞아 책을 정독하면서 봤는데도 느낀다. 앞으로 계속 제네릭은 어려움으로 남을 거라는 생각이 든다. 경험과 경력이 해결해 줄지도
+
+---
+
+## Chapter 13 제네릭
+
+### 13.1 왜 제네릭을 사용해야 하는가
+
+- 제네릭은 자바5에서 추가된 타입으로, 컬렉션, 람다식, 스트림, NIO에서 널리 사용된다.
+- 또한 API 문서에는 제네릭 표현을 사용하므로 제네릭에 대한 이해는 반드시 필요하다
+
+##### 컴파일 시 강한 체크 타입을 할 수 있다.
+
+- 자바 컴파일러는 제네릭 코드를 통해 타입체크를 진행하여, 런타임에 발생할 타입오류를 컴파일 타입에 체크한다.
+
+##### 타입 변환(casting)을 제거한다
+
+- 비 제네릭 코드에서는 타입 변환이 빈번히 일어나 프로그램 성능에 영향을 끼친다
+  - 기존에는 컬렉션 타입에서 값을 반환 할때 항상 형변환을 해줬어야 했다.
+
+### 13.2 제네릭 타입(`class<T>`, `interface<T>`)
+
+- 제네릭 타입이란 특정 타입을 파라미터로 가지는 클래스와 인터페이스를 말하며 일반적으로 선언할 때는 `T`를 타입 파라미터 이름으로 사용하여 아래와 같이 한다.
+
+```java
+public class 클래스<T>{...}
+public interface 인터페이스<T>{...}
+```
+
+- 기존에는 필드에 모든 종류의 객체를 저장하기 위해서 Object를 사용했지만, 이럴 경우 형변환을 해야하는 문제가 있었다.
+
+```java
+public class Box{
+    private Object object;
+    public Object get(){return this.object} //결과를 반드시 형변환 해야 한다.
+}
+
+Box box = new Box();
+...
+String value = (String) box.get();
+```
+
+- 하지만 제네릭을 사용하여 동일한 형태의 클래스를 만들면 형변환을 할 필요가 없다.
+
+```java
+public class Box<T>{
+    private T t;
+    public T get() {return this.t};
+}
+
+Box<String> box = new Box<String>();
+...
+String value = box.get(); //형변환이 필요없다. 
+```
+
+### 13.3 멀티 타입 파라미터(`class<K,V,...>`, `interface<K,V,...>`)
+
+- 제네릭 타입은 멀티 타입을 파라미터로 사용할 수 있으며, 이를 콤마로 구분한다.
+
+```java
+public class Product<T, M>{
+    private T kind;
+    private M model;
+    
+    public T getKind(){return this.kind};
+    public M getModel(){return this.model};
+}
+
+Product<Car, String> product1 = new Product<>(); //다이아몬드 연산자를 사용해 타입유추
+Product<Tv, String> product2 = new Product<>();
+
+```
+
+### 13.4 제네릭 메소드 (`<T,R> R method(T, t)`)
+
+- 매개변수와 리턴 타입으로 타입 파라미터를 가지는 메소드를 제네릭 메소드 라고 한다.
+
+```java
+public <T> Box<T> boxing(T t){
+    ...
+}
+```
+
+- 제네릭 방식은 두가지 방식으로 호출 할 수 있다.
+
+```java
+Box<Integer> box = <Integer>boxing(100); //명시적으로 Integer로 타입파라미터 지정
+Box<Integer> box = boxing(100); //타입파라미터를 Integer로 추정
+```
+
+### 13.5 제한된 타입 파라미터(`<T extends 최상위타입>`)
+
+- 타입 파라미터를 제한할 필요가 있는 경우에 `extends` 예약어를 타입파라미터에 포함시키면 된다.
+
+```java
+public <T extends Number> int compare(T t1, T t2){
+    ...
+}
+```
+
+- 위 메소드의 경우엔 `Number`의 하위 클래스인 `Byte`, `Short`, `Integer`, `Long`, `Double`만 매개변수로 전달할 수 있다.
+
+### 13.6 와일드 카드 타입(`<?>`, `<? extends ...>` , `<? super ...>`)
+
+- 자바 코드에서 `?` 는 일반적으로 와일드카드라고 부르며, 다음과 같이 세가지 형태로 사용한다.
+  - **Unbounded WildCards**: `	제네릭타입<?>`
+    - 타입 파라미터를 대치하는 구체적인 타입으로 모든 클래스나 인터페이스 타입이 올 수 있다.
+  - **Upper Bounded Wildcards**: `제네릭타입<? extends 상위타입>`
+    - 상위 클래스 제한
+  - **Lower Bounded Wildcards**: `제네릭타입<? super 하위타입>`
+    - 하위 클래스 제한
+
+##### 와일드 카드 타입을 이해하기 위한 예제
+
+###### Course.java - 제네릭 타입
+
+```java
+public class Course<T>{
+    private String name;
+    private T[] students; //students 타입 파라미터 배열로 받는다
+    
+    public Course(String name, int capcity){
+        this.name  = name;
+        students = (T[]) (new Object[capcity]); //타입 파라미터 배열생성은 Object로 한다
+    }
+    
+    public void add(T t){
+        for(int i=0; i<students.length; i++){
+            if(students[i]==null){
+                students[i] = t;
+                break;
+            }
+        }
+    }
+}
+```
+
+###### 수강생이 될 수 있는 타입 구조 예제
+
+```mermaid
+graph TB
+	P[Person]
+	W[Worker]
+	S[Student]
+	H[HighStudent]
+	P---W
+	P---S
+	S---H
+```
+
+- `Course<?>` : 수강생은 네가지의 모든 타입이 될 수 있다.
+- `Course<? extends Student`: 수강생은 `Student`와 `HighStudent`가 될 수 있다.
+- `Course<? super Worker>`: 수강생은 `Worker`와 `Person`만 될 수 있다.
+
+### 13.7 제네릭 타입의 상속과 구현
+
+- 제네릭 타입도 다른 타입처럼 부모 클래스가 될 수 있다, 또한 자식 제네릭 타입은 부모가 가지지 않는 타입 파라미터를 추가로 가질 수도 있다.
+
+```java
+public class ChildProduct<T, M, C> extends Product<T, M> {...}
+
+```
+
+- 만약 제네릭 인터페이스를 클래스로 구현한다면 해당 클래스도 받느시 제네릭 타입이어야 한다.
+
+```java
+public class StorageImple<T> implements Storage<T>{...}
+
+```
+
