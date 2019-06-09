@@ -1,6 +1,6 @@
 ---
 layout: post
-title: "Java 8 in Action Chapter02 - 동작 파라미터화 코드 전달하기"
+title: "Java 8 in Action Chapter03 - 람다 표현식"
 date: 2019-06-09
 categories:
 ---
