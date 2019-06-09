@@ -17,7 +17,7 @@ categories:
 
 ##### 자바 컬렉션 프레임워크의 구조
 
-```mermaid
+<div class="mermaid">
 graph TB
 C[Collection]
 L[List]
@@ -43,9 +43,7 @@ M-.-HM
 M-.-HB
 M-.-TM
 M-.-P
-
-
-```
+</div>
 
 ### 15.2 `List` 컬렉션
 
@@ -93,7 +91,7 @@ M-.-P
 
 - `HashSet`은 중복저장을 방지하기 위해서 동일객체임을 판단할때 객체의 `hashCode()`와 `equals()` 메소드를 통해서 판단한다
 
-```mermaid
+<div class="mermaid">
 graph LR
 	1["hashcode() 리턴값"]
 	2["equals() 리턴값"]
@@ -105,7 +103,7 @@ graph LR
 	S((동등객체))
 	S-->저장안함
 	2-->|true|S
-```
+</div>
 
 - 따라서, 개발자가 생성한 클래스의 객체들이 의도한대로 `HashSet`에 저장되기 위해서는, `String` 클래스처럼 `hashCode()` 와 `equals()` 메소드를 재정의 해야한다.
 

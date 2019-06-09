@@ -174,7 +174,7 @@ public final synchronized void setName(String name) {
 
 - 만약에 객체 내부에 동기화블록 과 동기화 메소드가 다수 존재할 경우, 한 스레드가 하나만 사용해도 다른 스레드는 나머지 부분에 접근할 수 없다.
 
-```mermaid
+<div class="mermaid">
 graph TB
 	t2(thread-2)
 	t1(thread-1)
@@ -189,15 +189,14 @@ graph TB
 	t2-.->|사용불가|sm
 	t2-.->|사용불가|sb
 	t2-->|사용가능|m
-
-```
+</div>
 
 ### 12.5 스레드 상태
 
 - 스레드 객체의 `start()`메소드를 호출한 뒤에도,  CPU를 점유하지 않으면 실행되지 않는다.
   - 또한 스레드가 다수일 때, 스레드는 실행 대기상태와 실행상태를 번갈아가면서 작업을 실행하게 된다.
 
-```mermaid
+<div class="mermaid">
 graph LR
 	NEW(스레드객체 생성<br/><b>NEW</b>)
 	RNB(실행 대기<br/><b>RUNNABLE</b>)
@@ -207,8 +206,8 @@ graph LR
 	RNB-->|반복|RUN
 	RUN-->|반복|RNB
 	RUN-->END
-	
-```
+</div>
+
 
 - 위의 그림 이외에도 **일시 정지** 상태 까지 포함하여 총 아래의 6가지 상태가 있으며, `getState()`메소드를 통해 스레드의 상태를 `Enum` 타입으로 얻을 수 있다.
 
@@ -226,7 +225,7 @@ graph LR
 - 12.5 절에서 언급한 스레드의 상태들은 코드를 통해 제어할 수 있고, 멀티스레드 프로그래밍에서 스레드의 상태제어는 필수이다.
 - 스레드의 상태 제어는 아래와 같은 메소드들을 통해서 제어할 수 있다.
 
-```mermaid
+<div class="mermaid">
 graph LR
 	P(일시정지)
 	W(실행대기)
@@ -241,8 +240,7 @@ graph LR
 	R---M2
 	M2-->P
 	R-->|"<del>stop()</del>"|E
-	
-```
+</div>
 
 - 위에서 취소선이 그어진 것은 `Deprecated`된 메소드들로 사용하지 말아야 한다. 위의 메소드들을 하나씩 살펴보면 아래와 같다.
 
@@ -592,7 +590,7 @@ ThreadGroup tg = new ThreadGorup(ThreadGroup parent, String name); //부모설�
 
 - 두개 이상의 스레드가 실행하는 작업의 결과를 공유된 객체에 저장하여 취합할 수 있다.
 
-```mermaid
+<div class="mermaid">
 graph LR
 	T1(스레드1<br/>작업 처리<br/>fa:fa-spinner)
 	T2(스레드2<br/>작업 처리<br/>fa:fa-spinner)
@@ -601,8 +599,7 @@ graph LR
 	T1-->R
 	T2-->R
 	R-->U
-
-```
+</div>
 
 - 위의 작업을 코드로 간단하게 표현하면 아래의 구조로 설명할 수 있다.
 

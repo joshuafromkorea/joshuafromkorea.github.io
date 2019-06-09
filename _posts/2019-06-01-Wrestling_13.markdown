@@ -146,7 +146,7 @@ public class MyConfiguration {
 
   ###### pom.xml 에 의존성도 잊지않고 넣어주자
 
-	```xml
+	```
 <dependency>
     <groupId>com.google.code.gson</groupId>
     <artifactId>gson</artifactId>
