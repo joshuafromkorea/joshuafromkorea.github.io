@@ -1,0 +1,217 @@
+---
+layout: post
+title: "레퍼런스로 스터디하는 스프링 부트 17-18회차 정리"
+date: 2019-06-23
+categories:
+---
+
+Spring MVC에 대한 마무리, 19강에서는 간단하게 CORS만 살펴본 뒤에 스프링 부트 2.0에 대한 QnA 기사를 읽어보기 때문에 17강과 18강 정리를 하나로 통합했다.
+
+---
+
+#### 29.1.11 Error Handling 이어서
+
+* `@ControllerAdvice`라는 어노테이션을 가진 클래스를 통해, `JSON` 문서를 커스터마이징 할 수 있다.
+  * 아래와 같이 특정한 컨트롤러나 특정한 예외 타입용으로 사용할 수 있다.
+
+```java
+@ControllerAdvice(basePackageClasses = AcmeController.class)
+public class AcmeControllerAdvice extends ResponseEntityExceptionHandler {
+
+	@ExceptionHandler(YourException.class)
+	@ResponseBody
+	ResponseEntity<?> handleControllerException(HttpServletRequest request, 
+                                                Throwable ex) {
+		HttpStatus status = getStatus(request);
+		return new ResponseEntity<>(
+            new CustomErrorType(status.value(), ex.getMessage()), status);
+	}
+
+	private HttpStatus getStatus(HttpServletRequest request) {
+		Integer statusCode = 
+            (Integer) request.getAttribute("javax.servlet.error.status_code");
+		if (statusCode == null) {
+			return HttpStatus.INTERNAL_SERVER_ERROR;
+		}
+		return HttpStatus.valueOf(statusCode);
+	}
+}
+```
+
+##### Custom Error Pages
+
+* 만약, 커스터마이징된 HTML 에러 페이지를 보여주고싶다면, `/error` 폴더에 해당 파일을 집어넣으면 된다.
+
+  * static HTML파일과 템플릿 파일을 모두 쓸 수 있다. 
+  * 파일 이름을 정확한 HTTP 에러코드를 사용하거나, masking 을 활용할 수 있다.
+
+  ###### 404와 매핑하는 경우
+
+  ```
+  src/
+   +- main/
+       +- java/
+       |   + <source code>
+       +- resources/
+           +- public/
+               +- error/
+               |   +- 404.html
+               +- <other public assets>
+  ```
+  
+  ###### 5로 시작하는 에러와 매핑하는 경우
+
+  	src/
+  	 +- main/
+  	     +- java/
+  	     |   + <source code>
+  	     +- resources/
+  	         +- templates/
+  	             +- error/
+  	             |   +- 5xx.ftl
+  	             +- <other templates>
+
+* 좀더 복잡한 매핑을 원한다면, `ErrorViewResolver` 인터페이스를 구현하여서 다음과 같이 할 수 있다.
+
+```java
+public class MyErrorViewResolver implements ErrorViewResolver {
+
+	@Override
+	public ModelAndView resolveErrorView(HttpServletRequest request,
+			HttpStatus status, Map<String, Object> model) {
+		// Use the request or status to optionally return a ModelAndView
+		return ...
+	}
+
+}
+```
+
+* 위에서 설명하는 스프링 부트의 에러 핸들링 방법이외에, 당연히 Spring MVC 가 제공해주는 기능들을 모두 사용할 수 있다.
+
+  * `@ExceptionHandler` 메소드나, `@ControllerAdvice` 를 사용할 수 있다.
+
+    ###### `@ExceptionHandler` 메소드 사용예 
+
+    ```java
+    @ExceptionHandler(BangsongException.class)
+    public ResponseEntity<String> handlerException(BangsongException e){
+        return new ResponseEntity<>(HttpStatus.I_AM_A_TEAPOT);
+    }
+    ```
+
+    ###### `@ControllerAdvice` 클래스 사용예
+
+    ```java
+    @ControllerAdvice
+    public class ExceptionHandleController {
+        @ExceptionHandler(BangsongException.class)
+        public ResponseEntity<String> handlerException(BangsongException e){
+            return new ResponseEntity<>(HttpStatus.I_AM_A_TEAPOT);
+        }
+    }
+    ```
+
+  * 위의 스프링 MVC에서 처리되지 않는 것들이, 부트가 제공하는 `ErroController` 가 처리가 된다.
+
+##### Mapping Error Pages outside of Spring MVC
+
+* 스프링 MVC를 사용하지 않는 어플리케이션의 경우, `ErrorPageRegistrar` 인터페이스를 구현해서, `ErrorPage`를 등록할 수 있다. 
+
+  * 스프링 MVC의 `DispatcherServlet`이 없어도 동작하는데, 이는 내장된 서블릿 컨테이너를 직접 통해서 사용하기 때문이다. `web.xml`에 직접 등록하는 것과 유사한 방법
+
+  ```java
+  @Bean
+  public ErrorPageRegistrar errorPageRegistrar(){
+  	return new MyErrorPageRegistrar();
+  }
+  
+  // ...
+  
+  private static class MyErrorPageRegistrar implements ErrorPageRegistrar {
+  
+  	@Override
+  	public void registerErrorPages(ErrorPageRegistry registry) {
+  		registry.addErrorPages(new ErrorPage(HttpStatus.BAD_REQUEST, "/400"));
+  	}
+  
+  }
+  ```
+
+#### 29.1.12 Spring HATEOAS
+
+* 하이퍼미디어를 사용하는, RESTful API를 사용한다면, 스프링부트는 대부분의 어플리케이션에서 잘 동작하는 Spring HATEOAS를 위한 **자동설정**을 제공한다.
+  * 이러한 자동설정은 `@EnableHypermediaSupport` 를 사용하지 않아도 동작할 수 있게 해주고, 하이퍼미디어 기반의 어플리케이션을 만들기 위해 등록해야하는 여러가지 Bean들을 자동으로 등록해준다.
+    * 클라이언트 측 지원을 위한 `LinkDiscoverers` 
+    * 오브젝트를 JSON화 할 수 있게 해주는`ObjectMapper`
+
+* 앞서서 언급한 `@EnableHypermediaSupport`를 통해서 Spring HATEOAS를 설정할 수 있고, 이 경우에는 앞서서 언급한 `ObjectMapper`에 대한 설정은 비활성화 된다.
+
+#### 29.1.13 CORS Support
+
+* [Cross-origin resource sharing](https://en.wikipedia.org/wiki/Cross-origin_resource_sharing)(CORS)란, 서비스 도메인 밖의 다른 도메인으로 부터 리소스를 요청할 수 있도록 허용한 구조로, 대부분의 브라우져에서 사용가능한 W3C 스펙의 구현이다.
+* 스프링 부트에선 특별한 설정 없이 CORS를 사용할 수 있고, `WebMvcConfigurer` Bean을 통해 전역적으로 커스터마이징 해서 사용할 수 있다.
+
+```java
+@Configuration
+public class MyConfiguration {
+
+	@Bean
+	public WebMvcConfigurer corsConfigurer() {
+		return new WebMvcConfigurer() {
+			@Override
+			public void addCorsMappings(CorsRegistry registry) {
+				registry.addMapping("/api/**");
+			}
+		};
+	}
+}
+```
+
+##### CORS 관련 실습
+
+###### `BangsongController.java`
+
+```java
+@GetMapping("/bs")
+public Bangsong bangsong (){
+    Bangsong bangsong = new Bangsong();
+    bangsong.setStreamer("kiwon");
+    bangsong.setTitle("레스링부");
+    return bangsong;
+}
+```
+
+* 위와 같은 컨트롤러가 `localhost:8080`에 띄워져 있을때, `localhost:9000`을 사용하는 클라이언트에서 요청을 보내면 아래와 같은 에러가 발생한다.
+
+```
+Access to XMLHttpRequest at 'http://localhost:8080/bs' from origin 'http://localhost:9000' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.
+```
+
+* 기본 CORS 정책에 따라, 다른 도메인에 있는 서비스를 호출할 수 없다는 에러이다.
+
+* `@CrossOrigin`어노테이션만 컨트롤러에 붙이면, 모든 도메인에 대해서 허용하는 정책을 바로 붙일 수 있다.
+
+	```java
+@CrossOrigin
+@GetMapping("/bs")
+public Bangsong bangsong (){
+    Bangsong bangsong = new Bangsong();
+    bangsong.setStreamer("kiwon");
+    bangsong.setTitle("레스링부");
+    return bangsong;
+}
+	```
+
+###### `WebMvcConfigurer` 구현체에 전역설정 적용하기
+
+```java
+@Configuration
+public class  WebConfig implements WebMvcConfigurer {
+
+    @Override
+    public void addCorsMappings(CorsRegistry registry) {
+        registry.addMapping("/bs/**").allowedOrigins("*");
+    }
+}
+```
+
