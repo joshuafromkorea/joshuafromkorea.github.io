@@ -1,0 +1,167 @@
+---
+layout: post
+title: "레퍼런스로 스터디하는 스프링 부트 20회차 정리"
+date: 2019-06-30
+categories:
+---
+#### 46.3.2 Detecting Test Configuration
+
+* Spring Test Framework에 익숙한 사람이라면, 스프링 `@Configuration`을 로딩하기 위해서 `@ContextConfiguration(classes=...)`가 사용하거나, `@Configuration`을 테스트 내부에 선언해서 사용하는 부분을 알고 있을 것이다.
+  * 스프링 부트에서는 이 부분이 **필요하지 않다.** 
+  * 명시적으로 설정을 정의하지 않은 경우에, 스프링 부트의 `@*Test` 어노테이션은 우선되는 설정을 자동적으로 찾는다.
+
+* 설정파일을 찾는 알고리즘
+  * 테스트를 소유한 패키지부터 검색을 시작해서, `@SpringBootApplication`이나 `@SpringBootConfiguration`이 붙은 클래스를 찾는다.
+  * 만약 제대로된 코드 구조를 가지고 있다면 메인 설정파일을 찾는데 아무런 문제가 없다.
+* 최우선 설정을 무시하고 커스터마이징 하고 싶으면, 내부 클래스로 `@TestConfiguration` 어노테이션을 사용해야 한다.
+  * `@Configuration` 내부 클래스와 다르게, 해당 클래스는 어플리케이션의 최우선 설정을 **대체 하는 것이 아니라 추가되어** 동작한다.
+
+#### 46.3.3 Excluding Test Configuration
+
+* 만약 어플리케이션이 `@SpringBootApplication`이나 `@ComponentScan`과 같은 컴포넌트 검색을 사용한다면, 필요하지 않은 테스트 설정이 자동으로 선택될 수 있다.
+* 이럴 경우에 최상위 경로에 테스트 설정클래스를 `@TestConfiugration`으로 만들고 이를 `@Import` 하여 사용하면 된다.
+
+```java
+@RunWith(SpringRunner.class)
+@SpringBootTest
+@Import(MyTestsConfiguration.class)
+public class MyTests {
+
+	@Test
+	public void exampleTest() {
+		...
+	}
+
+}
+```
+
+* 만약 직접적으로 `@ComponentScan`을 사용한다면 (`@SpringBootApplication` 대신에), `TypeExcludeFilter`를 함께 사용하여야 한다.
+
+#### 46.3.4 Testing with a mock enviornment
+
+* 기본적으로 `@SpringBootTest`는 서버를 실행하지 않는다. 따라서 Mock을 활용해서 웹 환경을 테스트하기 위해선 아래와 같이 `MockMvc`를 추가해줄 수 있다.
+
+```java
+import org.junit.Test;
+import org.junit.runner.RunWith;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.junit4.SpringRunner;
+import org.springframework.test.web.servlet.MockMvc;
+
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+@RunWith(SpringRunner.class)
+@SpringBootTest
+@AutoConfigureMockMvc
+public class MockMvcExampleTests {
+
+	@Autowired
+	private MockMvc mvc;
+
+	@Test
+	public void exampleTest() throws Exception {
+		this.mvc.perform(get("/")).andExpect(status().isOk())
+				.andExpect(content().string("Hello World"));
+	}
+
+}
+```
+
+* 만약 오로지 웹 레이어만 테스트하고 `ApplicationContext`전체를 시작시키고 싶지 않다면, `@WebMvcTest`를 사용해보는 것도 고려하면 좋다.
+
+#### 46.3.5 Testing with a running server
+
+* 만약 서버 전체를 사용하여 테스트하기 원한다면 "randm ports"를 사용하기를 권한다.
+  * `@SpringBootTest(webEnvironment=WebEnvironment.RANDOM_PORT)`를 통해 테스트가 실행 될 때마다 가용하는 포트를 자동적으로 선택할 수 있다.
+  * `@LocalServerPort` 를 사용해서 실제 사용되는 포트번호를 테스트에서 접근할 수 있다.
+* 서버에 REST한 요청을 하고 싶으면, `WebTestClient`를 `@Autowired`해서 사용할 수 있다. 
+
+``` java
+@Autowired
+WebTestClient webTestClient;
+
+@Test
+public void testFooWithWebTestClient(){
+    webTestClient.get().uri("/foo").exchange()
+            .expectStatus().isOk()
+            .expectBody(String.class).isEqualTo("Hello");
+}
+```
+
+* 위와 같은 설정은 `spring-webflux`를 필요로 하는데, 만약 웹플럭스를 사용하지 않는다면, `TestRestTemplate`을 제공한다.
+
+```java
+@Autowired
+private TestRestTemplate restTemplate;
+
+@Test
+public void testFooWithTestRestTemplate() {
+    String body = this.restTemplate.getForObject("/foo", String.class);
+    assertThat(body).isEqualTo("Hello");
+}
+```
+
+#### 46.3.7 Mocking and Spying Beans
+
+* 테스트 중에는, 어플리케이션 컨텍스트에 있는 컴포넌트들을 Mocking 해야할 필요가 있다.
+* 스프링부트의 `@MockBean` 을 사용하면 **Mockito**의 Mock을 만들 수 있다.
+  * 이를 통해 새로운 Bean을 만들거나, 기존의 존재하는 Bean을 대체할 수 있다.
+  * 해당 어노테이션은 테스트 클래스의 필드 혹은 `@Configuration` 클래스의 필드에 사용할 수 있다.
+  * Mock bean은 각각의 테스트에서 항상 초기화 된다.
+
+* 스프링 부트가 제공하는 테스트 관련 어노테이션(`@SpringBootTest`와 같은)을 사용할 경우, 이 기능은 자동으로 활성화 된다.
+
+```java
+@MockBean
+SampleService sampleService;
+
+@Test
+public void testFooWithWebTestClient(){
+    given(sampleService.getName()).willReturn("mock");
+    webTestClient.get().uri("/foo").exchange()
+            .expectStatus().isOk()
+            .expectBody(String.class).isEqualTo("mock");
+}
+```
+
+* `@SpyBean` 어노테이션을 사용하면, 빈의 내용중 일부만 대체할 수 있는 스파이 Bean을 만들 수 있다.
+
+  * 아래의 Sample Service가 있다고 할때,
+
+  ```java
+  @Service
+  public class SampleService {
+      public String getName(){
+          return "Remote Service";
+      }
+  
+      public String getReady(){
+          return "Yes I am ready";
+      }
+  }
+  ```
+
+  * `@SpyBean`은, `@MockBean`과 달리 일부만 조작되는 것을 알 수 있다.
+
+  ```java
+  @Mock
+  SampleService sampleService;
+  @SpyBean
+  SampleService spySampleService;
+  
+  @Test
+  public void testSpyBean(){
+      given(sampleService.getName()).willReturn("this is mock");
+      System.out.println(sampleService.getName()); //this is mock
+      System.out.println(sampleService.getReady()); //null <-구현이 안됨
+  
+      given(spySampleService.getName()).willReturn("this is spy");
+      System.out.println(spySampleService.getName()); //this is spy
+      System.out.println(spySampleService.getReady()); //Yes I am ready
+  }
+  ```

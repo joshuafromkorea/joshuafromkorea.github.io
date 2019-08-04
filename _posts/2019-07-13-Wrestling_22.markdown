@@ -1,0 +1,187 @@
+---
+layout: post
+title: "레퍼런스로 스터디하는 스프링 부트 22회차 정리"
+date: 2019-07-13
+categories:
+---
+
+#### 46.3.20 Auto-configured REST Clients
+
+* `@RestClientTest` 어노테이션을 통해서 REST Client에 대한 테스트를 진행할 수 있다.
+  * Jackson, GSON, Jsonb 지원에 대한 자동설정이 이뤄지며, `RestTemplateBuilder`도 설정된다.
+    * 해당 builder는 실제 테스트 대상의 `RestTemplate` 생성시 사용된다.
+  * `MockRestServiceServer`에 대한 지원도 설정된다.
+  * 설정에 대한 [상세정보](https://docs.spring.io/spring-boot/docs/2.1.3.RELEASE/reference/htmlsingle/#test-auto-configuration)는 링크를 참조
+* 테스트의 대상이 되는 특정한 Bean을 `@RestClientTest` 어노테이션의 `value`혹은 `component` 어트리뷰트에 명시해주어야 한다.
+
+```java
+@RunWith(SpringRunner.class)
+@RestClientTest(SampleService.class)
+public class SampleServiceTest {
+
+    @Autowired
+    SampleService sampleService;
+
+    @Autowired
+    MockRestServiceServer mockRestServiceServer;
+
+    @Test
+    public void foodTest(){
+        mockRestServiceServer.expect(requestTo("/foo"))
+                .andRespond(withSuccess("Kiwon", MediaType.TEXT_PLAIN));
+
+        String name = sampleService.getName();
+        assertThat(name).isEqualTo("Kiwon");
+    }
+}
+```
+
+#### 46.3.21 Auto-configured Spring REST Docs Tests
+
+* Mock MVC, REST Assured, WebTestClient를 사용하는 테스트에서  [**Spring REST Docs**](https://spring.io/projects/spring-restdocs) 을 함께 사용하기 위해서는 `@AutoConfigureRestDocs` 어노테이션을 사용하면 된다.
+  * `@AutoConfigureRestDocs`을 사용해서 기본 Output directory를 변경할 수 있고, 문서화된 URI들에 있는 호스트, 스키마, 포트를 변경하는데 사용될 수도 있다.
+
+* 사용법은 간단하게 기존의 MockMVC 기반 테스트에 추가해주면 된다.
+
+```java
+@RunWith(SpringRunner.class)
+@WebMvcTest(SampleController.class)
+@AutoConfigureRestDocs
+public class SampleWebMvcTest {
+
+    @Autowired
+    private MockMvc mockMvc;
+
+    @MockBean
+    private SampleService sampleService;
+
+
+    @Test
+    public void testFoo() throws Exception {
+        given(sampleService.getName()).willReturn("Kiwon");
+
+        mockMvc.perform(get("/foo"))
+                .andExpect(status().isOk())
+                .andExpect(content().string("Kiwon"))
+                .andDo(document("foo"));
+    }
+}
+```
+
+* 테스트를 수행하면  클래스패스 밑 `\target\generated-snippets` 경로에 `*.adoc` 형식의 문서가 생성된다.
+* 만약 Spring Rest Docs에 대한 좀더 상세한 설정을 한다면 `RestDocsMockMvcConfigureationCustomizer` Bean을 사용해서 설정하면 된다.
+
+```java
+@TestConfiguration
+static class CustomizationConfiguration
+		implements RestDocsMockMvcConfigurationCustomizer {
+
+	@Override
+	public void customize(MockMvcRestDocumentationConfigurer configurer) {
+		configurer.snippets().withTemplateFormat(TemplateFormats.markdown());
+	}
+
+}
+```
+
+* 아래의 설정을 추가해주면, `documnet()` 를 호출할 필요없이 모든 테스트가 문서화 될 수 있다.
+
+```java
+@TestConfiguration
+static class ResultHandlerConfiguration {
+
+	@Bean
+	public RestDocumentationResultHandler restDocumentation() {
+		return MockMvcRestDocumentation.document("{method-name}");
+	}
+
+}
+```
+
+#### 46.3.22 Additional Auto-configuration and Slicing
+
+* 스프링 부트가 기본 제공하는 부분화(Slicing)된 테스트 자동설정에 더해서 커스터마이징 된 테스트 부분화 자동설정을 추가할 수 있다.
+  * 커스텀 `@AutoConfigure...`어노테이션을 추가하거나, 아래와 같이 `@ImportAutoConfiguration`을 테스트에 추가해주면 된다.
+
+```java
+@RunWith(SpringRunner.class)
+@JdbcTest
+@ImportAutoConfiguration(IntegrationAutoConfiguration.class)
+public class ExampleJdbcTests {
+
+}
+```
+
+#### 46.3.23 User Configuration and Slicing
+
+* 만약 [스프링부트의 코드 구조](https://docs.spring.io/spring-boot/docs/2.1.3.RELEASE/reference/htmlsingle/#using-boot-structuring-your-code)를 잘 지켰다면, `@SpringBootApplication` 클래스가 테스트를 위한 기본 설정으로 사용된다.
+
+  * 따라서 해당 클래스에 다른 설정들이 지저분하게 추가되었다면, 모든 테스트설정에 해당 설정이 적용되게 될 것이다.
+
+    * 예를 들어 아래와 같이 `@EnableBatchProcessing`이 스프링 배치를 위해 사용된다면, 모든 테스트가 배치를 기동하는 결과를 낳게된다.
+
+    ```java
+    @SpringBootApplication
+    @EnableBatchProcessing
+    public class SampleApplication { ... }
+    ```
+
+  * 이에대한 해결책은, 특정 영역에 국한되는 설정을 독립적인 `@Configuration` 클래스로 분리하는 것이다.
+
+    ```java
+    @Configuration
+    @EnableBatchProcessing
+    public class BatchConfiguration { ... }
+    ```
+
+* 또한 아래처럼 `@SpringBootApplication`어노테이션과 함께 `@ComponentScan` 어노테이션을 사용할 경우에는 테스트  부분(Slicing)과 상관없는 컴포넌트가 스캔되는 결과를 초래할 수 있다.
+
+  ```java
+  @SpringBootApplication
+  @ComponentScan({ "com.example.app", "org.acme.another" })
+  public class SampleApplication { ... }
+  ```
+
+  * 이 경우에도 설정 클래스를 분리하는 방법으로 해결할 수 있다.
+
+### 46.4 Test Utilities
+
+#### 46.4.1 ConfigFileApplicationContextInitializer
+
+* 스프링 부트 테스트(`@SpringBootTest`)에서 제공하는 모든 기능이 필요한 상황이 아니면 아래와 같이 설정 할 수 있다.
+
+```java
+@ContextConfiguration(classes = Config.class,
+	initializers = ConfigFileApplicationContextInitializer.class)
+```
+
+#### 46.4.2 TestPropertyValues
+
+* `TestPropertyValues` 를클래스를 통해 프로퍼티를 `ConfigurableEnvironment`혹은 `ConfigurableApplicationContext`에 쉽게 추가할 수 있다.
+
+```java
+TestPropertyValues.of("org=Spring", "name=Boot").applyTo(env);
+```
+
+#### 46.4.3 OutputCapture
+
+* `OutputCapture` 는 JUnit `Rule` 로서, `System.out`혹은 `System.err`를 캡쳐해준다.
+
+```java
+
+public class MyTest {
+
+	@Rule
+	public OutputCapture capture = new OutputCapture();
+
+	@Test
+	public void testName() throws Exception {
+		System.out.println("Hello World!");
+		assertThat(capture.toString(), containsString("World"));
+	}
+
+}
+```
+
+
+

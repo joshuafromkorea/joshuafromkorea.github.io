@@ -1,0 +1,223 @@
+---
+layout: post
+title: "레퍼런스로 스터디하는 스프링 부트 21회차 정리"
+date: 2019-07-06
+categories:
+---
+#### 46.3.8 Auto-configured Tests
+
+* Spring Boot의 어플리케이션을 위한 자동설정은 테스트를 위해서 **불필요한 부분**도 포함한다.
+* 어플리케이션의 **일부분**만을 위한 설정을 읽을 수 있다.
+  * 예를들어, Spring MVC 컨트롤러 URL 매핑만을 위한 테스트의 경우엔, 데이터베이스와 관련된 계층은 확인할 필요가 없다.
+* `spring-boot-test-autoconfigure` 모듈은 **일부분**의 설정을 자동으로 할 수 있는 어노테이션을 제공한다.
+  * `@...Test`라는 어노테이션은 `ApplicationContext`를 만들어준다
+  * `@AutoConfigure...`라는 어노테이션은 커스터마이징된 자동설정을 하도록 해준다.
+* **각 부분**("slice")들은 컴포넌트 스캔이 적절한 컴포넌트만을 대상으로 하도록 하며, 또한 매우 제한적인 자동설정 클래스만 로딩하도록 한다.
+  * 만약 이들 중에 제외할 부분이 필요하면, 대부분의 `@...Test`어노테이션이 제공하는 `excludeAutoConfiguration` 어트리뷰트를 사용하거나, `@ImportAutoConfiguration#exclude`를 사용하면 된다.
+* 하나의 테스트에서 `@...Test`어노테이션을 통한 여러개의 **부분 테스트**를 사용하는 것은 허용되지 않는다.
+  * 하나의 `@...Test`안에서 `@AutoConfigure...`을 통해 수동으로 추가하면 된다.
+  * `@SpringBootTest`어노테이션과 `@AutoConfigure...` 어노테이션을 사용하는 것은 가능하다.
+    * 테스트의 분할이 목적이 아니라, 자동 설정 테스트 빈 일부를 사용하고 싶을 때 활용할 수 있다.
+
+#### 46.3.9 Auto-configured JSON Tests
+
+* JSON 직렬화 및 역직렬화가 의도한대로 작동하는지 시험하기 위해서는 `@JsonTest` 를 사용하면 된다.
+  * 이 경우, 아래의 라이브러리들과 같은 JSON Mapper에 대한 자동설정이 제공된다.
+    * Jackson `ObjectMapper`, `@JsonComponent` Bean 및 Jackson `Module`
+    * `Gson`
+    * `Jsonb`
+  * `@JsonTest`를 통해 일어나는 자동설정에 대한 [상세 내역](https://docs.spring.io/spring-boot/docs/2.1.3.RELEASE/reference/htmlsingle/#test-auto-configuration)은 링크 참고
+* 자동설정의 구성요소에 대한 제어가 필요하면, `@AutoConfigureJsonTesters`를 사용하면 된다.
+* 스프링 부트는 AssertJ 기반의 헬퍼를 제공한다.
+  * 헬퍼들은 `JacksonTester`, `GsonTester`, `JsonTester`, `BasicJsonTester`가 있다.
+    * 위의 헬퍼들은 `@Autowired`를 통해서 주입받을 수 있고, 반드시 `@JsonTest`와 함께 사용한다
+      * `@JsonTest`와 함께 사용하지 않을 경우에는 `@Before` 메서드 안에서 헬퍼의 `initFields` 메서드를 호출해서 별도로 사용할 수 있다.
+        * 속도가 매우 빠른다, Spring Application을 로딩하지 않기 때문
+
+##### `@JsonTest` 와 함께 사용하는 경우
+
+```java
+@RunWith(SpringRunner.class)
+@JsonTest
+public class SampleJsonTest {
+
+    @Autowired
+    JacksonTester<Sample> sampleJacksonTester;
+
+    @Test
+    public void testJson() throws IOException {
+        Sample sample = new Sample();
+        sample.setName("kiwon");
+        sample.setNumber(100);
+
+        assertThat(this.sampleJacksonTester.write(sample)).hasJsonPathStringValue("@.name")
+                .extractingJsonPathStringValue("@.name").isEqualTo("kiwon");
+        assertThat(this.sampleJacksonTester.write(sample)).hasJsonPathNumberValue("@.number")
+                .extractingJsonPathNumberValue("@.number").isEqualTo(100);
+    }
+}
+```
+
+###### `@JsonTest`없이 사용하는 경우
+
+```java
+//@RunWith(SpringRunner.class)
+//@JsonTest
+public class SampleJsonTest {
+
+    JacksonTester<Sample> sampleJacksonTester;
+
+    @Before
+    public void setup(){
+        JacksonTester.initFields(this, new ObjectMapper());
+    }
+
+    @Test
+    public void testJson() throws IOException {
+        Sample sample = new Sample();
+        sample.setName("kiwon");
+        sample.setNumber(100);
+
+        assertThat(this.sampleJacksonTester.write(sample)).hasJsonPathStringValue("@.name")
+                .extractingJsonPathStringValue("@.name").isEqualTo("kiwon");
+        assertThat(this.sampleJacksonTester.write(sample)).hasJsonPathNumberValue("@.number")
+                .extractingJsonPathNumberValue("@.number").isEqualTo(100);
+    }
+}
+```
+
+#### 46.3.10 Auto-configured Spring MVC Tests
+
+* Spring MVC 컨트롤러가 작동하는지 테스트가 필요할때는 `@WebMvcTest`를 사용하면 된다.
+  * 해당 어노테이션은 Spring MVC를 위한 기반환경을 설정해주고 아래의 Bean들을 스캔해준다.
+    *  `@Controller`, `@ControllerAdvice`, `@JsonComponent`, `Converter`,
+        `GenericConverter`, `Filter`, `WebMvcConfigurer`, `HandlerMethodArgumentResolver`
+    * 이외의 일반적은 `@Component`의 Bean들은 검색대상에서 제외된다.
+  * `@WebMvcTest`가 로딩하는 설정들에 대한 [상세정보](https://docs.spring.io/spring-boot/docs/2.1.3.RELEASE/reference/htmlsingle/#test-auto-configuration) 링크를 참조
+    * 추가적인 컴포넌트에 대한 로딩은 `@Import`를 사용하면 된다.
+* 종종, `@WebMvcTest`는 단일 컨트롤러만을 대상으로 하고, `@MockBean`과 함께 사용되어 목 테스트환경을 제공한다.
+  * `MockMvc`는 `@WebMvcTest` 어노테이션을 통해서 자동설정 되지만, 독립적으로 다른 테스트에서 사용하고 싶다면, `@AutoConfigureMockMvc`를 통해서 사용할 수 있다.
+
+##### `@WebMvcTest` 사용례
+
+```java
+@RunWith(SpringRunner.class)
+@WebMvcTest(SampleController.class)
+public class SampleWebMvcTest {
+
+    @Autowired
+    private MockMvc mockMvc;
+
+    @MockBean
+    private SampleService sampleService;
+
+
+    @Test
+    public void testFoo() throws Exception {
+        given(sampleService.getName()).willReturn("Kiwon");
+
+        mockMvc.perform(get("/foo")).andExpect(status().isOk())
+                .andExpect(content().string("Kiwon"));
+    }
+}
+```
+
+#### 46.3.11 Auto-configured Spring WebFlux Tests
+
+* Spring WebFlux 컨트롤러 테스트를 위해서는, `@WebFluxTest`를 사용하면 된다.
+  * WebFlux 를 위한 테스트 환경의 자동설정을 제공하며 아래의 Bean들을 스캔해준다.
+    * `@Controller`, `@ControllerAdvice`, `@JsonComponent`, `Converter`, `GenericConverter`, 
+      `WebFluxConfigurer`
+
+* 위에서 설명한 `@WebMvcTest` 와 다른 점은 `@MockMvc`대신에 [`WebTestClient`](https://docs.spring.io/spring/docs/5.1.5.RELEASE/spring-framework-reference/testing.html#webtestclient)를 사용할 수 있게 자동설정 해준다는 점이다.
+
+##### `@WebFlux`를 사용한 예제
+
+```java
+@RunWith(SpringRunner.class)
+@WebFluxTest(SampleController.class)
+public class SampleWebMvcTest {
+
+    @Autowired
+    private WebTestClient webTestClient;
+
+    @MockBean
+    private SampleService sampleService;
+
+
+    @Test
+    public void testFoo() throws Exception {
+        given(sampleService.getName()).willReturn("Kiwon");
+
+        webTestClient.get().uri("/foo").exchange()
+                .expectStatus().isOk()
+                .expectBody(String.class).isEqualTo("Kiwon");
+    }
+}
+```
+
+#### 46.3.12 AutoConfigured Data JPA Tests
+
+* `@DataJpaTest`어노테이션은 JPA 어플리케이션 테스트에 사용할 수 있다.
+  * 기본적으로 **in-memory**기반의 데이터베이스를 설정해주며, `@Entity` 클래스들과 Spring Data JPA repositories들을 로딩해준다.
+  * 자동설정에 대한 [상세정보](https://docs.spring.io/spring-boot/docs/2.1.3.RELEASE/reference/htmlsingle/#test-auto-configuration)는 링크에서 확인
+
+* JPA 테스트는 기본적으로 각 테스트마다 **roll back**이 되는 transactional한 테스트이다.
+  * 이 설정을 원하지 않는다면, 아래와 같이 설정해서 기능을 끌 수 있다.
+
+```java
+@RunWith(SpringRunner.class)
+@DataJpaTest
+@Transactional(propagation = Propagation.NOT_SUPPORTED)
+public class ExampleNonTransactionalTests {
+
+}
+```
+
+* `TestEntityManager` Bean도 주입받을 수 있는데, 해당 Bean은 테스트용으로 설계된 표준 JPA `EntityManager`를 대체할 수 있다.
+  * `@DataJpaTest`없이 해당 Bean을 사용하기를 우너하면 `@AutoConfigureTestEntityManager`를 사용하면 된다.
+
+##### `@DataJpaTest` 사용 예시
+
+```java
+import org.junit.*;
+import org.junit.runner.*;
+import org.springframework.boot.test.autoconfigure.orm.jpa.*;
+
+import static org.assertj.core.api.Assertions.*;
+
+@RunWith(SpringRunner.class)
+@DataJpaTest
+public class ExampleRepositoryTests {
+
+	@Autowired
+	private TestEntityManager entityManager;
+
+	@Autowired
+	private UserRepository repository;
+
+	@Test
+	public void testExample() throws Exception {
+		this.entityManager.persist(new User("sboot", "1234"));
+		User user = this.repository.findByUsername("sboot");
+		assertThat(user.getUsername()).isEqualTo("sboot");
+		assertThat(user.getVin()).isEqualTo("1234");
+	}
+
+}
+```
+
+* 만약 실제 데이터베이스와 연동하고 싶다면 아래와 같이 설정해주면 된다.
+
+```java
+@RunWith(SpringRunner.class)
+@DataJpaTest
+@AutoConfigureTestDatabase(replace=Replace.NONE)
+public class ExampleRepositoryTests {
+
+	// ...
+
+}
+```
+
+

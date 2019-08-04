@@ -1,0 +1,100 @@
+---
+layout: post
+title: "레퍼런스로 스터디하는 스프링 부트 19회차 정리"
+date: 2019-06-29
+categories:
+---
+
+### 46. Testing
+
+- Spring Boot 는 어플리케이션의 테스트를 위해서 다양한 유틸리티와 어노테이션을 제공한다.
+- 아래의 두 모듈을 통해서 테스트를 지원한다
+  - `spring-boot-test`: 테스트 관련 코어 모듈
+  - `spring-boot-test-autoconfigure`: 테스트를 위한 자동 설정
+- 위 두 모듈은 `spring-boot-stater-test`를 의존성 추가하여 사용할 수 있다.
+
+### 46.1 Test Scope Dependencies
+
+- `spring-boot-stater-test`를 통해 제공되는 라이브러리 들이다.
+  - [JUnit](http://junit.org): The de-facto standard for unit testing Java applications.
+  - [Spring Test](https://docs.spring.io/spring/docs/5.1.5.RELEASE/spring-framework-reference/testing.html#integration-testing) & Spring Boot Test: Utilities and integration test support for Spring Boot applications.
+  - [AssertJ](https://joel-costigliola.github.io/assertj/): A fluent assertion library.
+  - [Hamcrest](http://hamcrest.org/JavaHamcrest/): A library of matcher objects (also known as constraints or predicates).
+  - [Mockito](http://mockito.org/): A Java mocking framework.
+  - [JSONassert](https://github.com/skyscreamer/JSONassert): An assertion library for JSON.
+  - [JsonPath](https://github.com/jayway/JsonPath): XPath for JSON.
+
+### 46.2 Testing Spring Applications
+
+- 의존성 주입이 가져다 주는 이점 중 하나는 **단위 테스트**를 하기 쉽게 해준 다는 것이다.
+  - Spring의 개입 없이, `new` 연산자를 사용하여 인스턴스를 생성하고, 실제 의존성관계 대신에 *mock* 오브젝트를 만들어 사용할 수 있다.
+- 종종 단위테스트를 넘어서, 스프링의 `ApplicationContext`를 사용한 통합테스트를 할 수도 있다.
+  - 이럴 때에도 다른 구조나 어플리케이션과의 연결 없이 통합테스트를 수행할 수 있다.
+  - 스프링은 이러한 통합 테스트를 위한 모듈을 제공하며, `spring-boot-stater-test`를 통해 쉽게 할 수 있다.
+- 만약 `spring-test`모듈에 대한 경험이 없으면 [**관련문서**](https://docs.spring.io/spring/docs/5.1.5.RELEASE/spring-framework-reference/testing.html#testing)를 먼저 읽어야만 한다.
+
+### 46.3 Testing Spring Boot Applications
+
+- 스프링부트는 바닐라 스프링 프레임워크와 다르지 않기 때문에 테스트를 위해 별다른 것이 필요하지 않다.
+
+- 스프링부트는 `@SpringBootTest`라는 어노테이션을 제공한다
+
+  - `spring-test`의 `@ContextConfiguration`의 대체제로 사용될 수 있다.
+  - `SpringApplication`을 통해서 테스트에서 사용할 수 있는 `ApplicationContext`를 만들어 준다.
+  - 이 어노테이션 이외에도 스프링 부트가 제공하는 추가적인 어노테이션들이 있다.
+
+- JUnit4를 사용한다면, 반드시 `@RunWith(SpringRunner.class)`를 사용하여 테스트를 해야 한다.
+
+  - JUnit5 의 경우엔 `@SpringBootTest` 어노테이션이 다 커버한다.
+
+- `@SpringBootTest`는  기본적으로 서버를 시작하지 않기 때문에, `webEnvironment` 속성을 사용해서 `@SpringBootTest`에 대한 설정을 아래와 같이 할 수 있다.
+
+  - `MOCK`(기본값): 웹 `ApplicationContext`를 로딩하고, Mock 웹 환경을 제공한다.
+
+    - 내장된 서버는 실행되지 않는다.
+    - 만약에 클래스패스 안에 웹 환경이 존재하지 않으면, 이 모드는 자동적으로 "non-web" `ApplicationContext`를 생성한다.
+    - `@AUtoConfigureMockMvc` 나 `@AutoConfigureWebTestClient` 와 함께 사용되어서, Mock 기반의 웹 어플리케이션에 테스트에 사용될 수 있다.
+
+    ```java
+    @RunWith(SpringRunner.class)
+    @AutoConfigureMockMvc
+    @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+    public class SampleControllerTest {
+    
+        @Autowired
+        MockMvc mockMVc;
+    
+        @Test
+        public void testFoo() throws Exception {
+            assertThat(mockMVc).isNotNull();
+            mockMVc.perform(get("/foo")).andExpect(status().isOk())
+                    .andDo(print());
+        }
+    
+    }
+    ```
+
+  - `RANDOM_PORT`: `WebServerApplicationContext` 를 로딩하고, 실 웹환경을 제공한다. 내장된 서버가 시작되며 무작위 포트를 Listen 한다.
+
+  - `DEFINED_PORT`: 랜덤 포트와 동일한 설정에 추가적으로 정해진 포트를 Listen 하도록 하는데 해당 포트는 `application.properties`에 정의되었거나 그렇지 않다면 기본 값인 `8080`을 사용한다.
+
+  - `NONE`": `ApplicationContext`를 로딩하지만, 어떠한 웹환경도 제공하지 않는다.
+
+- 만약 테스트가 `@Transactional`이면, 테스트가 종료되고 모든 트랜잭션은 롤백 된다.
+
+  - 그러나, `RANDOM_PORT`혹은 `DEFINED_PORT`는 명시적으로 실 서블릿 환경을 제공해서, HTTP 클라이언트와 서버과 별도의 스레드에서 동작하기 때문에, 서버쪽에서 일어나는 트랜잭션은 롤백되지 않는다.
+
+- `webEnvironment = WebEnvironment.RANDOM_PORT`와 함께 사용하는 `@SpringBootTest`는 만약 어플리케이션이 다른 포트에 관리 포트를 사용한다면, 별도의 무작위 포트에 관리 서버를 올릴 것이다.
+
+#### 46.3.1 Detecting Web Application Type
+
+- 스프링 MVC 가 사용되고 있으면, MVC기반의 컨텍스를 만들어주고, Spring WebFlux가 사용되면 WebFlux기반의 어플리케이션 컨텍스트가 만들어진다.
+
+  - 두 개가 모두 사용되고 있으면, MVC가 우선쉬 되지만, reactive 웹 어플리케이션을 테스트하고 싶으면, `spring.main.web-application-type`프로퍼티를 설정해서 할 수 있다.
+
+  ```java
+  @RunWith(SpringRunner.class)
+  @SpringBootTest(properties = "spring.main.web-application-type=reactive")
+  public class MyWebFluxTests { ... }
+  ```
+
